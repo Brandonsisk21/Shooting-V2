@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using ArenaShooter.Core;
 using UnityEngine;
 
 namespace ArenaShooter.Gameplay
@@ -16,18 +18,30 @@ namespace ArenaShooter.Gameplay
         [Tooltip("Debug: press K to hurt yourself for this much, to test regen.")]
         public float debugSelfDamage = 25f;
 
+        [Tooltip("Where the player can (re)spawn. If empty, respawns where the player started.")]
+        public List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
+
         public bool IsDead => health != null && health.IsDead;
         public float RespawnCountdown => IsDead ? Mathf.Max(0f, _respawnAt - Time.time) : 0f;
 
-        private Vector3 _spawnPosition;
-        private Quaternion _spawnRotation;
+        private static readonly System.Random SpawnRandom = new System.Random();
+
+        private Vector3 _fallbackPosition;
+        private Quaternion _fallbackRotation;
         private float _respawnAt;
 
         private void Start()
         {
-            _spawnPosition = transform.position;
-            _spawnRotation = transform.rotation;
-            health.Died += _ => _respawnAt = Time.time + respawnDelay;
+            _fallbackPosition = transform.position;
+            _fallbackRotation = transform.rotation;
+            health.Died += _ => OnDied();
+            MoveToSpawn();
+        }
+
+        private void OnDied()
+        {
+            weapons.DropOnDeath();
+            _respawnAt = Time.time + respawnDelay;
         }
 
         private void Update()
@@ -69,7 +83,26 @@ namespace ArenaShooter.Gameplay
         {
             health.ResetHealth();
             weapons.ResetLoadout();
-            motor.Teleport(_spawnPosition, _spawnRotation);
+            MoveToSpawn();
+        }
+
+        private void MoveToSpawn()
+        {
+            Vector3 position = _fallbackPosition;
+            Quaternion rotation = _fallbackRotation;
+
+            var candidates = new List<GroundPoint>(spawnPoints.Count);
+            foreach (var spawn in spawnPoints)
+                candidates.Add(new GroundPoint(spawn.transform.position.x, spawn.transform.position.z));
+            // Enemy positions come in with bots; until then every spawn is equally safe.
+            int index = SpawnSelector.Pick(candidates, null, SpawnRandom);
+            if (index >= 0)
+            {
+                position = spawnPoints[index].transform.position;
+                rotation = spawnPoints[index].transform.rotation;
+            }
+
+            motor.Teleport(position, rotation);
             look.ResetPitch();
         }
 

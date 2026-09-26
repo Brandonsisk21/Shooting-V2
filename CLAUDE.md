@@ -13,7 +13,8 @@ First-person, Halo 2–style arena shooter (FFA vs. bots in Phase 1). Unity (C#)
 
 ## Layout
 - `Assets/Scripts/Core/`: engine-independent rules (no `UnityEngine`; asmdef has `noEngineReferences`). Put testable logic here.
-- `Assets/Scripts/Gameplay/`: Unity components. `ArenaBootstrap` builds the gray-box test range at runtime on Play.
+- `Assets/Scripts/Gameplay/`: Unity components. `ArenaBootstrap` builds the gray-box map at runtime on Play (F10 swaps arena/test range).
+- Map geometry for the arena goes through `SymmetricBuilder` so every piece gets its 180° twin; don't place one-sided pieces with `GrayBox` directly unless they sit on the center point.
 - `Assets/Tests/EditMode/`: NUnit tests for Core.
 
 ## Checks (no Unity editor in cloud sessions)

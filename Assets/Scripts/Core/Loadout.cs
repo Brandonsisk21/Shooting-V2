@@ -124,6 +124,27 @@ namespace ArenaShooter.Core
             }
         }
 
+        /// <summary>
+        /// On death (GDD 2.3.1), removes every weapon except the spawn weapon and returns the ones
+        /// that should land on the map: the spawn weapon isn't dropped (everyone respawns with it)
+        /// and weapons with no ammo left are discarded.
+        /// </summary>
+        public List<WeaponState> TakeDeathDrops(string spawnWeaponId)
+        {
+            var drops = new List<WeaponState>();
+            for (int i = _slots.Count - 1; i >= 0; i--)
+            {
+                var weapon = _slots[i];
+                weapon.CancelReload();
+                if (weapon.Stats.id == spawnWeaponId) continue;
+                _slots.RemoveAt(i);
+                if (!weapon.IsEmpty) drops.Add(weapon);
+            }
+            drops.Reverse();
+            ActiveIndex = 0;
+            return drops;
+        }
+
         public bool SwitchNext()
         {
             if (_slots.Count < 2) return false;

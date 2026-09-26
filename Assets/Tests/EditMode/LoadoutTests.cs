@@ -105,6 +105,30 @@ namespace ArenaShooter.Core.Tests
         }
 
         [Test]
+        public void DeathDropsSniperButKeepsRifle()
+        {
+            var loadout = SpawnLoadout();
+            var sniper = new WeaponState(WeaponStats.Sniper(), magazine: 2, reserve: 4);
+            loadout.Pickup(sniper);
+
+            var drops = loadout.TakeDeathDrops("rifle");
+
+            Assert.AreEqual(1, drops.Count);
+            Assert.AreSame(sniper, drops[0], "The dropped sniper keeps its remaining ammo.");
+            Assert.AreEqual(1, loadout.Slots.Count);
+            Assert.AreEqual("rifle", loadout.Active.Stats.id);
+        }
+
+        [Test]
+        public void DeathDoesNotDropEmptyWeapons()
+        {
+            var loadout = SpawnLoadout();
+            loadout.Pickup(new WeaponState(WeaponStats.Sniper(), magazine: 0, reserve: 0));
+            Assert.AreEqual(0, loadout.TakeDeathDrops("rifle").Count);
+            Assert.AreEqual(1, loadout.Slots.Count);
+        }
+
+        [Test]
         public void CannotSwitchWithOneWeapon()
         {
             Assert.IsFalse(SpawnLoadout().SwitchNext());

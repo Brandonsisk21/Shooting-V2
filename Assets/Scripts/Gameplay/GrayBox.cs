@@ -62,6 +62,28 @@ namespace ArenaShooter.Gameplay
             return Box(name, center, new Vector3(width, thickness, dir.magnitude), color, parent, rotation);
         }
 
+        /// <summary>A solid (collidable) primitive of any shape, with a flat color.</summary>
+        public static GameObject Solid(PrimitiveType type, string name, Transform parent, Vector3 position, Vector3 scale, Color color, Quaternion? rotation = null)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            go.transform.SetPositionAndRotation(position, rotation ?? Quaternion.identity);
+            go.transform.localScale = scale;
+            go.GetComponent<Renderer>().sharedMaterial = Mat(color);
+            return go;
+        }
+
+        /// <summary>An invisible wall: collider only.</summary>
+        public static GameObject Blocker(string name, Vector3 center, Vector3 size, Transform parent)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = center;
+            go.AddComponent<BoxCollider>().size = size;
+            return go;
+        }
+
         /// <summary>A primitive with no collider, for visuals only.</summary>
         public static GameObject Visual(PrimitiveType type, string name, Transform parent, Vector3 localPos, Vector3 localScale, Color color)
         {

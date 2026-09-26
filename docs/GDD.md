@@ -1,4 +1,4 @@
-# Arena Shooter — Game Design Document (v0.2 / Phase 1)
+# Arena Shooter — Game Design Document (v0.3 / Phase 1)
 
 > Status: DRAFT. Sections marked **[OPEN QUESTION]** need a decision before implementation begins.
 > This document is meant to be dropped into the project repo (e.g. `/docs/GDD.md`) so Claude Code can reference it across sessions.
@@ -62,8 +62,9 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - **DECIDED:** Players carry up to **2 weapons**. Everyone spawns with only the Rifle, so the second slot is free for the Sniper.
 - **DECIDED:** Weapons can be **picked up** (press E near the weapon). There is **no manual drop**: a weapon only leaves your hands when you swap it for a different weapon you're picking up (the swapped-out weapon is left on the ground where you stood).
 - Picking up a weapon you already carry takes its ammo instead (up to your reserve max).
-- Weapons left on the ground despawn after 30s.
-- **[OPEN QUESTION]** What happens to a carried Sniper when its holder dies? Phase 1 assumption: it is **lost** (not dropped). Halo drops it on death, which creates a lot of map play — decide before bots land.
+- **DECIDED:** On death, a carried Sniper is **dropped where its holder died**, keeping its remaining ammo, so anyone can grab it. The Rifle isn't dropped (everyone respawns with one), and a Sniper with no ammo left is discarded.
+- Weapons left on the ground (dropped by death or by a swap) despawn after 30s.
+- Note: the center pad keeps its fixed 90s timer, so a dropped Sniper and a fresh pad Sniper can briefly both exist. This follows "regardless of pickup state" in 2.3; flag if it should change.
 
 ### 2.4 Movement
 **DECIDED:** Classic Halo-style — **no sprint**, fixed jump height, single jump, strafing is the main mobility skill, moderate air control.
@@ -87,13 +88,24 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 ## 3. Map Design
 
-### 3.1 First Map: "[Working Title]" — Midship-inspired
+### 3.1 First Map: "Overlook" (working title) — Midship-inspired, outdoor
 - Fully **symmetrical** (either point symmetry/180° rotational, like Midship, or mirror symmetry).
 - Sniper spawns at the **exact center**, elevated or in a contested chokepoint, visible/reachable from multiple angles so no single spot dominates.
 - Multiple verticality layers (upper walkways, lower tunnels) connecting back to center — classic Halo maps use 2–3 elevation tiers.
 - Symmetrical spawn points around the perimeter, equal rotation/distance to center power weapon.
 
-**[OPEN QUESTION]** Map scale/player count (see below) — a map for 4 players is much smaller than one for 8–12.
+**Gray-box layout (built in `OutdoorArenaMap.cs`):**
+- **Theme:** outdoor arena (see 5). An open grassy valley ringed by cliffs, with stone structures, boulders and trees for cover.
+- **Size:** 44 m × 64 m playable, sized for 4–8 players FFA. Tall invisible walls at the cliff line.
+- **Symmetry:** 180° rotational (point symmetry, like Midship). Every piece is placed through a builder that adds its rotated twin, so the halves can't drift apart.
+- **Callouts:** North = **Red base**, South = **Blue base** (colored railings/overlook), useful now for callouts and later for team modes.
+- **Center (tier 1, 3 m):** 10 × 10 m open platform with the Sniper pad. Reachable four ways: two ramps (NE and SW) plus boulder "steps" on the east and west sides that you jump up (1.2 m → 2.2 m → 3 m).
+- **Bases (tier 1, 3.5 m):** 18 × 8 m deck on pillars at each end, with a covered **tunnel** underneath (tier 0), side landings with ramps down to the field, a back wall, and front railings with a drop-down gap.
+- **Overlooks (tier 2, 6.5 m):** small platform above each base, reached by a ramp from the deck. Long sightline to the center, but exposed.
+- **Side ridges (tier 1, 2 m):** raised rock ledges along both long sides with partial cover walls, used as flanking routes.
+- **Ground cover:** trees, boulders and a low wall break up center-field sightlines.
+- **Spawns:** 8 (4 per half: base deck, base landing, two corners), all facing the center. FFA picks the spawn farthest from the nearest living enemy (random when there are none).
+- **[OPEN QUESTION]** Final name for the map.
 
 ### 3.2 Player Count
 **DECIDED:** 4–8 players FFA (design the map with ~6 spawn points as a middle-ground target, expandable toward 8).
@@ -109,6 +121,7 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 ## 5. Art Direction
 
+- **DECIDED:** **Outdoor arena theme.** Bright daytime sky, warm sun, light distance fog, grassy ground, stone structures, cliffs and trees. The gray-box pass already uses this palette (`OutdoorPalette.cs`) and lighting (`OutdoorEnvironment.cs`).
 - **Style:** Cartoony / stylized — think bold outlines or flat-shaded low-poly, saturated color palette, exaggerated proportions on characters/weapons rather than photorealism.
 - **Readability first:** even with a cartoony style, enemy silhouettes must read clearly against map backgrounds (a common arena-shooter art trap is a beautiful map that hides enemies).
 - **DECIDED:** No existing art or models. **Phase 1 is gray-box/blockout only** — primitive shapes for the map (cubes, ramps, cylinders), capsule or basic humanoid placeholder for the player character. Final cartoony art pass is a later phase, once movement/combat feel good.
@@ -148,7 +161,7 @@ All core Phase 1 decisions are now locked (see summary below). The only thing le
 
 1. Art reference for the *eventual* art pass (not urgent — Phase 1 is gray-box only, this matters once you get to the real art phase).
 2. Sniper "power weapon incoming" callout (optional polish, not required for Phase 1).
-3. Carried Sniper on death: lost vs. dropped (see 2.3.1).
+3. Final name for the first map (working title "Overlook").
 
 ### All decisions locked in for Phase 1:
 - **Engine:** Unity (C#)
@@ -161,6 +174,8 @@ All core Phase 1 decisions are now locked (see summary below). The only thing le
 - Health: 100 HP, regenerates 25 HP/s after 5s without damage
 - Inventory: 2 weapon slots, pick up with E, no manual drop (swap only)
 - Movement values: see 2.4
+- Sniper drops on death (keeps its ammo)
+- Map theme: outdoor arena; first map is a 180°-symmetric Midship-style layout (see 3.1)
 - Phase 1 scope: fully playable bot match, one map, no networking yet
 - Art: no existing assets — gray-box/blockout only for Phase 1
 

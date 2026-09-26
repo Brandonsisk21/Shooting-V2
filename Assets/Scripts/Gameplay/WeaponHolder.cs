@@ -17,7 +17,7 @@ namespace ArenaShooter.Gameplay
         [Tooltip("A click this close to the next allowed shot still fires when the weapon is ready (seconds).")]
         public float fireBufferTime = 0.12f;
         public float pickupRadius = 1.6f;
-        [Tooltip("Seconds before a weapon dropped by a swap disappears.")]
+        [Tooltip("Seconds before a weapon dropped by a swap or death disappears.")]
         public float droppedWeaponLifetime = 30f;
 
         public Loadout Loadout { get; private set; }
@@ -57,6 +57,22 @@ namespace ArenaShooter.Gameplay
             Loadout.Give(new WeaponState(spawnWeapon));
             IsZoomed = false;
             _fireQueuedUntil = float.NegativeInfinity;
+        }
+
+        /// <summary>
+        /// Drops carried power weapons where the owner died (GDD 2.3.1). The spawn weapon isn't
+        /// dropped and empty weapons are discarded. Dropped weapons despawn like swapped ones.
+        /// </summary>
+        public void DropOnDeath()
+        {
+            IsZoomed = false;
+            var drops = Loadout.TakeDeathDrops(spawnWeapon.id);
+            for (int i = 0; i < drops.Count; i++)
+            {
+                Vector3 offset = Quaternion.Euler(0f, i * 90f, 0f) * (Vector3.forward * 0.5f * i);
+                WeaponPickup.Create(drops[i], GroundPointBelow(_owner.position + offset) + Vector3.up * 0.5f, droppedWeaponLifetime);
+            }
+            BuildViewModel(Loadout.Active);
         }
 
         public void QueueFire() => _fireQueuedUntil = Time.time + fireBufferTime;
@@ -178,6 +194,22 @@ namespace ArenaShooter.Gameplay
                 NearbyPickup = pickup;
                 NearbyPickupOutcome = outcome;
             }
+        }
+
+        /// <summary>Where a dropped weapon should rest, so one dropped mid-jump doesn't float in the air.</summary>
+        private Vector3 GroundPointBelow(Vector3 position)
+        {
+            var hits = Physics.RaycastAll(position + Vector3.up * 0.5f, Vector3.down, 100f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            Vector3 ground = position;
+            foreach (var hit in hits)
+            {
+                if (hit.collider.transform.IsChildOf(_owner) || hit.collider.GetComponent<Hitbox>() != null) continue;
+                if (hit.distance >= best) continue;
+                best = hit.distance;
+                ground = hit.point;
+            }
+            return ground;
         }
 
         private void OnActiveChanged(WeaponState weapon)

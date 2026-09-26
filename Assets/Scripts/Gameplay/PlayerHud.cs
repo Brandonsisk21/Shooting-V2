@@ -15,6 +15,7 @@ namespace ArenaShooter.Gameplay
         public Health health;
         public Camera view;
         public SniperSpawnPad sniperPad;
+        public string mapName = "";
 
         private const float HitMarkerDuration = 0.25f;
         private const float DamageNumberDuration = 0.8f;
@@ -84,7 +85,8 @@ namespace ArenaShooter.Gameplay
             if (Cursor.lockState != CursorLockMode.Locked)
                 Label(new Rect(0, h * 0.3f, w, 50), "Click to play", _big, Color.white);
             if (_showHelp)
-                GUI.Label(new Rect(12, 10, 460, 200),
+                GUI.Label(new Rect(12, 10, 460, 220),
+                    mapName + "   (F10 switch map)\n" +
                     "WASD move   Space jump   Mouse aim\n" +
                     "LMB fire   RMB scope (sniper)   R reload\n" +
                     "E pick up   Q / wheel / 1 / 2 switch weapon\n" +
