@@ -38,3 +38,8 @@ crashlytics-build.properties
 # OS
 .DS_Store
 Thumbs.db
+
+# Out-of-editor .NET check projects (Tools/): keep the project files, ignore build output
+!Tools/**/*.csproj
+Tools/**/bin/
+Tools/**/obj/

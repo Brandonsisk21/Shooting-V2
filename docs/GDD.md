@@ -1,4 +1,4 @@
-# Arena Shooter — Game Design Document (v0.1 / Phase 1 Draft)
+# Arena Shooter — Game Design Document (v0.2 / Phase 1)
 
 > Status: DRAFT. Sections marked **[OPEN QUESTION]** need a decision before implementation begins.
 > This document is meant to be dropped into the project repo (e.g. `/docs/GDD.md`) so Claude Code can reference it across sessions.
@@ -20,7 +20,10 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 ### 2.1 Health
 - **Max Health:** 100 (no separate shield/armor layer for Phase 1)
-- **[OPEN QUESTION]** Regeneration? (e.g., Halo-style shields regen, but plain HP usually does not regen without pickups). Default assumption: **no regen**, health packs may be a Phase 2 feature.
+- **DECIDED:** Health **regenerates** (Halo-style), after a delay with no damage taken.
+  - Regen delay: **5.0s** after the last damage taken (any new damage restarts the delay).
+  - Regen rate: **25 HP/s** (0 → 100 in 4s once regen starts).
+  - Starting values — tune after playtesting.
 
 ### 2.2 Weapons (Phase 1 — exactly two weapons)
 
@@ -37,14 +40,48 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - Reference point: Halo 2's Battle Rifle fires 3-round bursts with roughly a 0.26–0.3s delay *between bursts* — effectively ~3.3 "trigger pulls" per second, even though each burst itself fires much faster. 300 RPM for a single-shot weapon lands in that same practical cadence.
 - At this rate: best-case kill (2 headshots + 1 any shot) = 2 intervals = **0.4s** between first and last hit; worst-case kill (4 body shots) = 3 intervals = **0.6s**. Tight enough to punish misses, not so fast it feels automatic.
 - Treat this as a starting value to tune after playtesting — ±1 shot/sec is a reasonable adjustment range once it's actually in-engine and being played.
-**[OPEN QUESTION]** Sniper scope: zoom levels, sway, does scoping slow movement?
+**DECIDED:** Sniper scope = **single 2x zoom level**, **no sway**. Right mouse toggles the scope. Mouse sensitivity is scaled down while zoomed so on-screen aim speed feels the same.
+- Scoping does **not** slow movement (not specified; flag if this should change).
+- The rifle has no scope in Phase 1.
+
+**Weapon handling (Phase 1 starting values, tunable):**
+
+| Weapon | Magazine | Reserve ammo | Fire interval | Reload time | Range |
+|---|---|---|---|---|---|
+| Rifle | 30 | Unlimited (no ammo pickups exist in Phase 1) | 0.2s | 2.0s | 150 m |
+| Sniper | 4 | 8 | 0.8s | 2.5s | 500 m |
+
+- Weapon switch time: 0.4s (can't fire while switching).
 
 ### 2.3 Sniper Respawn Logic
 - **DECIDED:** Sniper spawns at map center on a **fixed 90-second timer**, regardless of pickup state.
+- The first sniper spawns at match start. If an unclaimed sniper is still sitting on the pad when the timer fires, it is refreshed (full ammo) rather than duplicated.
 - **[OPEN QUESTION]** Should there be an audio/visual "power weapon incoming" callout (Halo does this) to create map-wide tension) — recommended, but not required for Phase 1.
+
+### 2.3.1 Inventory & Pickup
+- **DECIDED:** Players carry up to **2 weapons**. Everyone spawns with only the Rifle, so the second slot is free for the Sniper.
+- **DECIDED:** Weapons can be **picked up** (press E near the weapon). There is **no manual drop**: a weapon only leaves your hands when you swap it for a different weapon you're picking up (the swapped-out weapon is left on the ground where you stood).
+- Picking up a weapon you already carry takes its ammo instead (up to your reserve max).
+- Weapons left on the ground despawn after 30s.
+- **[OPEN QUESTION]** What happens to a carried Sniper when its holder dies? Phase 1 assumption: it is **lost** (not dropped). Halo drops it on death, which creates a lot of map play — decide before bots land.
 
 ### 2.4 Movement
 **DECIDED:** Classic Halo-style — **no sprint**, fixed jump height, single jump, strafing is the main mobility skill, moderate air control.
+
+**Movement values (1 Unity unit = 1 meter; starting values, tunable):**
+
+| Parameter | Value | Notes |
+|---|---|---|
+| Move speed | 6.0 m/s | Same speed in all directions (no backpedal penalty) |
+| Ground acceleration | 50 m/s² | ~0.12s to full speed: responsive, still has a hint of weight |
+| Ground deceleration | 50 m/s² | |
+| Air acceleration | 15 m/s² | 30% of ground: "moderate" air control |
+| Max air speed | 6.0 m/s | Strafing mid-air can't exceed ground speed |
+| Jump height | 1.3 m | Jump velocity ≈ 7.2 m/s |
+| Gravity | 20 m/s² | Higher than real (9.8) for a snappier arc; airtime ≈ 0.72s |
+| Player height / radius | 1.8 m / 0.4 m | Eye height 1.6 m |
+| Step height / slope limit | 0.4 m / 45° | |
+| Field of view | 60° vertical (≈91° horizontal at 16:9) | Sniper 2x zoom ≈ 32° vertical |
 
 ---
 
@@ -110,7 +147,8 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 All core Phase 1 decisions are now locked (see summary below). The only thing left open:
 
 1. Art reference for the *eventual* art pass (not urgent — Phase 1 is gray-box only, this matters once you get to the real art phase).
-2. Scope details Claude Code may still need clarified as it works: sniper scope zoom level/sway, sprint-adjacent movement tuning (air control %, jump height in world units), sniper "power weapon incoming" callout (optional polish, not required for Phase 1).
+2. Sniper "power weapon incoming" callout (optional polish, not required for Phase 1).
+3. Carried Sniper on death: lost vs. dropped (see 2.3.1).
 
 ### All decisions locked in for Phase 1:
 - **Engine:** Unity (C#)
@@ -119,7 +157,10 @@ All core Phase 1 decisions are now locked (see summary below). The only thing le
 - Player count: 4–8 FFA
 - Weapons: hitscan
 - Rifle: 30-round magazine, 5 shots/sec (300 RPM) fire rate, 40 headshot / 25 body damage
-- Sniper: 100 headshot (instant kill) / 50 body damage, fixed 90-second respawn timer
+- Sniper: 100 headshot (instant kill) / 50 body damage, fixed 90-second respawn timer, 2x zoom, no sway
+- Health: 100 HP, regenerates 25 HP/s after 5s without damage
+- Inventory: 2 weapon slots, pick up with E, no manual drop (swap only)
+- Movement values: see 2.4
 - Phase 1 scope: fully playable bot match, one map, no networking yet
 - Art: no existing assets — gray-box/blockout only for Phase 1
 

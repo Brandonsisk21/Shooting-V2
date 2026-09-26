@@ -1,0 +1,112 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace ArenaShooter.Gameplay
+{
+    /// <summary>
+    /// Helpers for building placeholder geometry from primitives (GDD 5: Phase 1 is gray-box only).
+    /// Everything visual lives here so gameplay code never depends on art.
+    /// </summary>
+    public static class GrayBox
+    {
+        public static readonly Color Floor = new Color(0.55f, 0.57f, 0.6f);
+        public static readonly Color Wall = new Color(0.42f, 0.44f, 0.48f);
+        public static readonly Color Cover = new Color(0.33f, 0.47f, 0.62f);
+        public static readonly Color Platform = new Color(0.62f, 0.52f, 0.36f);
+
+        private static readonly Dictionary<(Color, Vector2), Material> Materials = new Dictionary<(Color, Vector2), Material>();
+        private static Texture2D _grid;
+        private static Material _vertexColorUnlit;
+
+        public static Material Mat(Color color, Vector2? gridTiling = null)
+        {
+            Vector2 tiling = gridTiling ?? Vector2.zero;
+            if (Materials.TryGetValue((color, tiling), out var cached) && cached != null) return cached;
+
+            var shader = Shader.Find("Standard");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+            var mat = new Material(shader) { color = color };
+            if (gridTiling.HasValue)
+            {
+                mat.mainTexture = GridTexture();
+                mat.mainTextureScale = tiling;
+            }
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.1f);
+            Materials[(color, tiling)] = mat;
+            return mat;
+        }
+
+        /// <summary>A solid box whose grid texture tiles once per meter along its two largest dimensions.</summary>
+        public static GameObject Box(string name, Vector3 center, Vector3 size, Color color, Transform parent, Quaternion? rotation = null)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            go.transform.SetPositionAndRotation(center, rotation ?? Quaternion.identity);
+            go.transform.localScale = size;
+
+            float[] dims = { size.x, size.y, size.z };
+            System.Array.Sort(dims);
+            var tiling = new Vector2(Mathf.Round(dims[2]), Mathf.Round(dims[1]));
+            go.GetComponent<Renderer>().sharedMaterial = Mat(color, tiling);
+            return go;
+        }
+
+        /// <summary>A walkable ramp whose top surface runs from <paramref name="low"/> to <paramref name="high"/>.</summary>
+        public static GameObject Ramp(string name, Vector3 low, Vector3 high, float width, Color color, Transform parent)
+        {
+            const float thickness = 0.4f;
+            Vector3 dir = high - low;
+            var rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+            Vector3 center = (low + high) * 0.5f - rotation * Vector3.up * (thickness * 0.5f);
+            return Box(name, center, new Vector3(width, thickness, dir.magnitude), color, parent, rotation);
+        }
+
+        /// <summary>A primitive with no collider, for visuals only.</summary>
+        public static GameObject Visual(PrimitiveType type, string name, Transform parent, Vector3 localPos, Vector3 localScale, Color color)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            go.name = name;
+            // Immediate so the collider never exists for a frame (it would block the player or eat shots).
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localScale = localScale;
+            go.GetComponent<Renderer>().sharedMaterial = Mat(color);
+            return go;
+        }
+
+        /// <summary>Shared unlit material that takes its color from vertex colors (e.g. LineRenderer colors).</summary>
+        public static Material VertexColorUnlit
+        {
+            get
+            {
+                if (_vertexColorUnlit == null) _vertexColorUnlit = new Material(Shader.Find("Sprites/Default"));
+                return _vertexColorUnlit;
+            }
+        }
+
+        private static Texture2D GridTexture()
+        {
+            if (_grid != null) return _grid;
+            const int size = 64;
+            _grid = new Texture2D(size, size, TextureFormat.RGBA32, true)
+            {
+                name = "GrayBoxGrid",
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Trilinear,
+                anisoLevel = 8,
+            };
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                bool line = x < 2 || y < 2;
+                pixels[y * size + x] = line ? new Color(0.75f, 0.75f, 0.75f) : Color.white;
+            }
+            _grid.SetPixels(pixels);
+            _grid.Apply(true);
+            return _grid;
+        }
+    }
+}

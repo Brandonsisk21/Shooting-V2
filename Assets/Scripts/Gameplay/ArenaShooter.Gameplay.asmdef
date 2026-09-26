@@ -1,0 +1,16 @@
+{
+    "name": "ArenaShooter.Gameplay",
+    "rootNamespace": "ArenaShooter.Gameplay",
+    "references": [
+        "ArenaShooter.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
