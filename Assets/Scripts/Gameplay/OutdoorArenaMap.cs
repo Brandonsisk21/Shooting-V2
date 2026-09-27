@@ -53,6 +53,11 @@ namespace ArenaShooter.Gameplay
             b.GrenadeSpawn(new Vector3(18f, 2f, -6f));
             b.GrenadeSpawn(new Vector3(7f, 0f, 7f));
 
+            // Grass last, so it only grows where the rays reach bare ground (not under cover or on the path).
+            Physics.SyncTransforms();
+            GrassField.Build(root, new Rect(-HalfWidth - 3f, -HalfLength - 3f, HalfWidth * 2f + 6f, HalfLength * 2f + 6f), GraphicsSetup.GrassDensity,
+                spot => Mathf.Abs(spot.x) < 2.3f && Mathf.Abs(spot.y) < 22.3f);
+
             return map;
         }
 

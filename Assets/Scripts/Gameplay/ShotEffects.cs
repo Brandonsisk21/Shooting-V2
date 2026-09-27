@@ -64,12 +64,12 @@ namespace ArenaShooter.Gameplay
                 Destroy(scorch, 8f);
             }
 
-            Burst(position, 45, new Color(1f, 0.85f, 0.3f), new Color(1f, 0.4f, 0.15f), 6f, 12f, 0.35f, 0.7f, 0.05f, 0.14f, 0.6f);   // sparks
+            Burst(position, 45, new Color(1f, 0.85f, 0.3f), new Color(1f, 0.4f, 0.15f), 6f, 12f, 0.35f, 0.7f, 0.05f, 0.14f, 0.6f, glow: true);   // sparks
             Burst(position, 18, new Color(0.75f, 0.7f, 0.85f, 0.7f), new Color(0.5f, 0.45f, 0.6f, 0.6f), 1f, 3f, 0.9f, 1.6f, 0.6f, 1.2f, -0.05f); // smoke
         }
 
         private static void Burst(Vector3 position, int count, Color a, Color b, float minSpeed, float maxSpeed,
-            float minLife, float maxLife, float minSize, float maxSize, float gravity)
+            float minLife, float maxLife, float minSize, float maxSize, float gravity, bool glow = false)
         {
             var go = new GameObject("BlastParticles");
             go.transform.position = position;
@@ -98,7 +98,7 @@ namespace ArenaShooter.Gameplay
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
             fade.color = new ParticleSystem.MinMaxGradient(gradient);
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = GrayBox.VertexColorUnlit;
+            renderer.sharedMaterial = glow ? GrayBox.HdrVertexColor : GrayBox.VertexColorUnlit;
             ps.Play();
         }
 
@@ -124,7 +124,7 @@ namespace ArenaShooter.Gameplay
             line.startWidth = startWidth;
             line.endWidth = endWidth;
             line.numCapVertices = 4; // rounded, blobby ends
-            line.sharedMaterial = GrayBox.VertexColorUnlit;
+            line.sharedMaterial = GrayBox.HdrVertexColor; // bright enough to bloom
             line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             line.receiveShadows = false;
 

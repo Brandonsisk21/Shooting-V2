@@ -42,7 +42,7 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - Treat this as a starting value to tune after playtesting — ±1 shot/sec is a reasonable adjustment range once it's actually in-engine and being played.
 **DECIDED:** Sniper scope = **single 2x zoom level**, **no sway**. Right mouse toggles the scope. Mouse sensitivity is scaled down while zoomed so on-screen aim speed feels the same.
 - Scoping does **not** slow movement (not specified; flag if this should change).
-- The rifle has no scope in Phase 1.
+- **DECIDED:** The rifle can **zoom** too (same button). Starting value **1.5x** (a light Halo BR-style zoom with a ring reticle, no scope overlay); tunable in `WeaponStats`.
 
 **Weapon handling (Phase 1 starting values, tunable):**
 
@@ -52,6 +52,16 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 | Sniper | 4 | 8 | 0.8s | 2.5s | 500 m |
 
 - Weapon switch time: 0.4s (can't fire while switching).
+
+### 2.2.1 Grenades ("boom bombs")
+- **DECIDED:** Everyone spawns with **2 grenades**; more lie on **pickup pads** around the map (walk over to grab 2, up to a max of 4). A taken pad refills after 30 s.
+- Thrown (G / LT) in a lob along your aim; bounces with physics and explodes after a **2 s fuse**.
+- Damage (starting values, tunable in `GrenadeStats`): **120** within 1.5 m (a kill), falling off to 0 at **5 m**. Walls and cover block the blast. Thrower can hurt themselves. Blast pushes grunts away and shakes nearby cameras.
+- Bots throw grenades at enemies 7–22 m away now and then, and run from live grenades near them.
+- Grenades are **not** dropped on death (not specified; flag if this should change).
+
+### 2.2.2 Crouch
+- **DECIDED:** Crouch is **hold** (Left Ctrl / C, B / left-stick click). Height 1.8 → 1.2 m, eyes 1.6 → 1.05 m, move speed 6 → 3 m/s; hitboxes shrink with it. You can't stand up under a low ceiling. Bots crouch-strafe in long-range fights.
 
 ### 2.3 Sniper Respawn Logic
 - **DECIDED:** Sniper spawns at map center on a **fixed 90-second timer**, regardless of pickup state.
@@ -68,7 +78,8 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 ### 2.3.2 Controls
 - **DECIDED:** Keyboard + mouse **and Xbox controller**, usable interchangeably (on-screen prompts follow the last device used). Built on Unity's Input System package.
-- **Controller (Halo-style):** LS move, RS look, A jump, RT fire, LT or RS-click scope, X reload (**hold X** to pick up a weapon), Y switch weapon, View (hold) scoreboard, Menu help. Rumble on firing and taking damage.
+- **Controller (Halo-style):** LS move, RS look, A jump, RT fire, LT grenade, RS-click zoom/scope, B or LS-click crouch (hold), X reload (**hold X** to pick up a weapon), Y switch weapon, View (hold) scoreboard, Menu pause.
+- **Keyboard + mouse:** WASD, mouse look, Space jump, LMB fire, RMB zoom/scope, Left Ctrl or C crouch (hold), G grenade, R reload, E pick up, Q/wheel/1/2 switch, Tab scoreboard, Esc pause. Rumble on firing and taking damage.
 - Stick look: 15% deadzone, squared response curve, 200°/s yaw and 130°/s pitch at full tilt, with a Halo-style turn boost (up to 1.5x) after holding full sideways. Light **aim assist friction** (look slows to 55% while the crosshair is over an enemy) on controller only.
 - **DECIDED:** friction-only aim assist is a good start; revisit magnetism after more playtesting. Aim assist can be turned off in Settings.
 
@@ -110,6 +121,7 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - **Overlooks (tier 2, 6.5 m):** small platform above each base, reached by a ramp from the deck. Long sightline to the center, but exposed.
 - **Side ridges (tier 1, 2 m):** raised rock ledges along both long sides with partial cover walls, used as flanking routes.
 - **Ground cover:** trees, boulders and a low wall break up center-field sightlines.
+- **Cover sizes (enlarged):** base railings and ridge walls 1.3 m (hide standing behind them when crouched, peek over standing), boulders 1.4–2.6 m tall and 2.4–4.2 m wide, a 4.6 m long low wall, 1.5 m tunnel crates and a crate stack in each field. Grenade pads: in front of each base, on each ridge and in each half of the field.
 - **Spawns:** 8 (4 per half: base deck, base landing, two corners), all facing the center. FFA picks the spawn farthest from the nearest living enemy (random when there are none).
 - **Name (DECIDED):** "Crash Site" (was working title "Crash Site"). The tier-2 platforms above each base are still called "overlooks".
 
@@ -161,7 +173,8 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - **First art pass (done, still built from primitives in code, no model assets yet):** alien palette and lavender sky with a ringed planet, moons and floating rocks; mushroom trees; crashed dropships behind each base with team stripes, portholes and glowing engines; landing-pad ring and beacons around the Long Zapper; bobble-head grunts in fishbowl helmets (helmet pops off + confetti on death); toy-blaster weapon models; glowing bolts/beam; "pew" sound effects; goofy bot names (Pvt. Pickles, Sgt. Noodle...).
 - **Gameplay is unchanged by art:** hitboxes, collision and the map layout are exactly as before; decorations have no collision (or sit outside the play space).
 - **3D models (done):** custom Space Grunts models generated by `Tools/ModelGen` (Python): the grunt (with animated legs, aim-following arms and a bobbling head; helmet pops off as a real object), the Pew Rifle and Long Zapper, giant mushrooms, crashed dropships in team colors, lumpy rocks for boulders/cliffs/hills, and supply crates. Previews: `docs/art/grunts-lineup.png`, `docs/art/models-sheet.png`. Collision is still the gray-box shapes underneath.
-- Later art steps: textures/decals, skeletal animation (death, reload), more props.
+- **More realistic rendering pass (done):** the cartoon shapes stay, the lighting and surfaces got more believable: procedural tiling textures with normal maps (alien turf, cracked rock, riveted hull plating), glossy plastic armor, satin metal guns, grass tufts on the field, lit clouds, a reflection probe for the sky, softer longer-range shadows, and camera post effects (bloom on glows and bolts, ACES filmic tone mapping, slight saturation/contrast, vignette). Settings → **Graphics quality** Low / Medium / High (Low: no post effects or grass, hard shadows, no MSAA).
+- Later art steps: decals, skeletal animation (death, reload), more props.
 
 ## 6. Audio (placeholder — not blocking Phase 1 code)
 - Weapon fire, hit confirmation (headshot vs. body should sound distinct), footsteps, power-weapon spawn callout, death/respawn stingers.

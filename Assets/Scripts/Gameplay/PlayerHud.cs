@@ -565,12 +565,14 @@ namespace ArenaShooter.Gameplay
         private void DrawHelp(bool gamepad)
         {
             string text = gamepad
-                ? "LS move   RS look   A jump   RT fire   LT/RS-click scope\n" +
-                  "X reload (hold X: pick up)   Y switch   View: scores   Menu: pause"
-                : "WASD move   Space jump   Mouse aim   LMB fire   RMB scope\n" +
-                  "R reload   E pick up   Q/wheel switch   Tab scores   Esc pause\n" +
+                ? "LS move   RS look   A jump   RT fire   RS-click zoom   LT grenade\n" +
+                  "B / LS-click crouch   X reload (hold X: pick up)   Y switch\n" +
+                  "View: scores   Menu: pause"
+                : "WASD move   Space jump   Mouse aim   LMB fire   RMB zoom\n" +
+                  "Ctrl/C crouch   G grenade   R reload   E pick up   Q/wheel switch\n" +
+                  "Tab scores   Esc pause   " +
                   "F1 hide this   K hurt yourself (test regen)";
-            var r = new Rect(Margin, Margin, 470f, gamepad ? 64f : 80f);
+            var r = new Rect(Margin, Margin, 470f, 80f);
             HudSkin.RoundedRect(r, HudSkin.Panel);
             HudSkin.Label(new Rect(r.x + 12f, r.y + 6f, r.width - 24f, 18f), mapName, _small, HudSkin.Accent, TextAnchor.UpperLeft, shadow: false);
             HudSkin.Label(new Rect(r.x + 12f, r.y + 24f, r.width - 24f, r.height - 28f), text, _small, HudSkin.Dim, TextAnchor.UpperLeft, shadow: false);

@@ -25,6 +25,10 @@ a center sniper platform, Red (north) and Blue (south) bases with tunnels and ov
 - **HUD:** health + ammo panel bottom-left, kill feed, score, scoreboard, damage-direction arcs,
   red crosshair over enemies.
 - **Controls:** keyboard + mouse or an **Xbox controller**, switchable at any time.
+- **Crouch, grenades, rifle zoom:** hold crouch to duck behind cover (smaller hitbox, slower);
+  start each life with 2 boom bombs and grab more from glowing pads on the map.
+- **Graphics:** textured, normal-mapped rock/turf/hull plating, glossy armor, grass, clouds,
+  bloom and filmic tone mapping. Settings → **Graphics quality** (Low / Medium / High).
 - **Online:** host a game and invite Steam friends, or join a friend who's hosting (see below).
 - **Menus:** main menu, match setup, settings (saved), controls, pause (Esc / Menu button).
   All usable with a controller.
@@ -49,7 +53,9 @@ must be **Input System Package (New)** or **Both** (not "Input Manager (Old)").
 | Move / look | WASD / mouse | Left stick / right stick |
 | Jump | Space | A |
 | Fire | Left mouse | RT |
-| Sniper scope | Right mouse | LT or click right stick |
+| Zoom (Pew Rifle 1.5x) / scope (Long Zapper 2x) | Right mouse | Click right stick |
+| Crouch (hold) | Left Ctrl or C | B or click left stick |
+| Throw grenade | G | LT |
 | Reload | R | X |
 | Pick up weapon | E | Hold X |
 | Switch weapon | Q, mouse wheel, 1, 2 | Y |

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ArenaShooter.Core;
 using UnityEngine;
 
 namespace ArenaShooter.Gameplay
@@ -16,6 +17,18 @@ namespace ArenaShooter.Gameplay
 
         private static readonly Dictionary<(Color, Vector2), Material> Materials = new Dictionary<(Color, Vector2), Material>();
         private static Texture2D _grid;
+        private const float GlowBoost = 2.2f;
+        private static Material _hdrVertexColor;
+
+        /// <summary>Unlit vertex-colored material brightened for bloom (bolts, sparks).</summary>
+        public static Material HdrVertexColor
+        {
+            get
+            {
+                if (_hdrVertexColor == null) _hdrVertexColor = new Material(VertexColorUnlit) { color = new Color(GlowBoost, GlowBoost, GlowBoost, 1f) };
+                return _hdrVertexColor;
+            }
+        }
         private static Material _vertexColorUnlit;
         private static readonly Dictionary<Color, Material> GlassMaterials = new Dictionary<Color, Material>();
         private static readonly Dictionary<Color, Material> GlowMaterials = new Dictionary<Color, Material>();
@@ -25,14 +38,67 @@ namespace ArenaShooter.Gameplay
             Vector2 tiling = gridTiling ?? Vector2.zero;
             if (Materials.TryGetValue((color, tiling), out var cached) && cached != null) return cached;
 
-            var mat = NewLit(color);
-            if (gridTiling.HasValue)
+            Material mat;
+            SurfaceKind? surface = gridTiling.HasValue ? SurfaceFor(color) : null;
+            if (surface.HasValue)
             {
-                mat.mainTexture = GridTexture();
-                mat.mainTextureScale = tiling;
+                // Realistic surfaces: tiling detail texture + normal map, per-surface shininess.
+                var (albedo, normal) = SurfaceTextures.Get(surface.Value);
+                mat = NewLitNormal(color);
+                mat.mainTexture = albedo;
+                float scale = surface.Value == SurfaceKind.Ground ? 0.25f : surface.Value == SurfaceKind.Rock ? 0.5f : 1f;
+                mat.mainTextureScale = tiling * scale;
+                if (mat.HasProperty("_BumpMap")) mat.SetTexture("_BumpMap", normal);
+                SetShine(mat, surface.Value == SurfaceKind.Plating ? 0.42f : surface.Value == SurfaceKind.Rock ? 0.14f : 0.06f,
+                    surface.Value == SurfaceKind.Plating ? 0.15f : 0f);
             }
-            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.1f);
+            else
+            {
+                mat = NewLit(color);
+                if (gridTiling.HasValue)
+                {
+                    mat.mainTexture = GridTexture(); // test range keeps its measuring grid
+                    mat.mainTextureScale = tiling;
+                }
+                SetShine(mat, 0.1f, 0f);
+            }
             Materials[(color, tiling)] = mat;
+            return mat;
+        }
+
+        /// <summary>A lit material with explicit shininess (models: plastic armor, metal, skin...).</summary>
+        public static Material Shiny(Color color, float gloss, float metallic)
+        {
+            var key = (color, new Vector2(-1f - gloss, -1f - metallic)); // distinct from tiled keys
+            if (Materials.TryGetValue(key, out var cached) && cached != null) return cached;
+            var mat = NewLit(color);
+            SetShine(mat, gloss, metallic);
+            Materials[key] = mat;
+            return mat;
+        }
+
+        private static void SetShine(Material mat, float gloss, float metallic)
+        {
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", gloss);
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
+        }
+
+        /// <summary>Which realistic surface a palette color gets (null: plain / grid).</summary>
+        private static SurfaceKind? SurfaceFor(Color c)
+        {
+            if (c == OutdoorPalette.Grass || c == OutdoorPalette.Hills) return SurfaceKind.Ground;
+            if (c == OutdoorPalette.Rock || c == OutdoorPalette.RockLight || c == OutdoorPalette.Cliff || c == OutdoorPalette.CliffLight) return SurfaceKind.Rock;
+            if (c == Floor || c == Wall || c == Cover || c == Platform) return null; // test range
+            return SurfaceKind.Plating;
+        }
+
+        /// <summary>Lit material with a normal map (template keeps the normal-map shader variant in builds).</summary>
+        public static Material NewLitNormal(Color color)
+        {
+            var template = Resources.Load<Material>("ArenaMaterials/LitNormal");
+            var mat = template != null ? new Material(template) : NewLit(color);
+            if (template == null) mat.EnableKeyword("_NORMALMAP");
+            mat.color = color;
             return mat;
         }
 
@@ -128,11 +194,14 @@ namespace ArenaShooter.Gameplay
             return mat;
         }
 
-        /// <summary>Flat, unlit, fog-free color (glows, sky objects, effects). Cached per color.</summary>
+        /// <summary>
+        /// Flat, unlit, fog-free color (glows, sky objects, effects). Cached per color. Brightened past
+        /// 1.0 (HDR) so post-processing bloom makes it glow; looks the same without post effects.
+        /// </summary>
         public static Material Glow(Color color)
         {
             if (GlowMaterials.TryGetValue(color, out var cached) && cached != null) return cached;
-            var mat = new Material(VertexColorUnlit) { color = color };
+            var mat = new Material(VertexColorUnlit) { color = new Color(color.r * GlowBoost, color.g * GlowBoost, color.b * GlowBoost, color.a) };
             GlowMaterials[color] = mat;
             return mat;
         }

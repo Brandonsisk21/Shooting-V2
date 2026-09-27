@@ -16,6 +16,7 @@ First-person, Halo 2–style arena shooter (FFA vs. bots in Phase 1). Unity (C#)
 - `Assets/Scripts/Gameplay/`: Unity components. `ArenaBootstrap` is the entry point and game flow (main menu over a bots-only background match → match → pause); it builds the gray-box map at runtime. Menus are `MenuUI` (IMGUI); preferences are `GameSettings` (PlayerPrefs).
 - Map geometry for the arena goes through `SymmetricBuilder` so every piece gets its 180° twin; don't place one-sided pieces with `GrayBox` directly unless they sit on the center point.
 - `Assets/Tests/EditMode/`: NUnit tests for Core.
+- Graphics: surface textures are generated in Core (`TileableNoise`, `SurfacePatterns`) and cached by `SurfaceTextures`; `GrayBox.Mat` picks them by palette color. Post effects are `PostFX` + `Assets/Resources/Shaders/PostFX.shader` (built-in pipeline, `OnRenderImage`); quality levels live in `GraphicsSetup`.
 - 3D models are generated, not hand-made: edit `Tools/ModelGen/generate.py` (numpy) and run it to rewrite `Assets/Resources/Models/*.bytes`; `ModelFormatTests` validate the files. Models are visual only; collision stays on the gray-box shapes. Preview renders: `docs/art/`.
 
 ## Checks (no Unity editor in cloud sessions)

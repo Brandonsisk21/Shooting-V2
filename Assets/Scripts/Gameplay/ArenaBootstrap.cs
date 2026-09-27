@@ -55,6 +55,7 @@ namespace ArenaShooter.Gameplay
                 Destroy(cam.gameObject);
             OutdoorEnvironment.Apply();
             GameSettings.Load();
+            GraphicsSetup.Apply(GameSettings.GraphicsQuality); // before the map is built: it sets grass density
             GameSettings.Changed += ApplySettings;
             _menu = gameObject.AddComponent<MenuUI>();
             _menu.flow = this;
@@ -197,6 +198,7 @@ namespace ArenaShooter.Gameplay
             yield return null; // let Destroy finish so the old map isn't baked into the new nav mesh
 
             BuildWorld(setup, withPlayer, clientMirror);
+            if (CurrentMap?.Root != null) OutdoorEnvironment.RefreshReflections(CurrentMap.Root);
             if (!withPlayer) _menuCamera = MenuCamera.Create();
             ApplySettings();
             _switching = false;
@@ -249,6 +251,7 @@ namespace ArenaShooter.Gameplay
             // No player means we're behind the main menu.
             float volume = GameSettings.Volume * (_player == null ? menuVolume : 1f);
             AudioListener.volume = volume;
+            GraphicsSetup.Apply(GameSettings.GraphicsQuality);
             if (_player != null)
                 GameSettings.ApplyTo(_player.GetComponent<PlayerInputReader>(), _player.GetComponent<PlayerLook>());
         }

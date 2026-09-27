@@ -24,6 +24,9 @@ namespace ArenaShooter.Gameplay
         private static readonly HashSet<string> Missing = new HashSet<string>();
 
         public static readonly Color HelmetGlass = new Color(0.75f, 0.95f, 1f, 0.28f);
+        /// <summary>Model palette colors that render as metal (gun bodies, barrels, bolts).</summary>
+        private static readonly HashSet<string> MetalHexes = new HashSet<string> { "9ea6b8", "4a4f60", "c9ced9", "d8dce6", "3d4150", "3a3f52", "a3abbd" };
+        private static readonly HashSet<string> SkinHexes = new HashSet<string> { "ffcfa1", "f2b184" };
 
         public static bool Has(string name) => Load(name) != null;
 
@@ -96,14 +99,21 @@ namespace ArenaShooter.Gameplay
         {
             switch (material)
             {
-                case "Team": return GrayBox.Mat(team);
-                case "TeamDark": return GrayBox.Mat(Color.Lerp(team, Color.black, 0.28f));
-                case "TeamLight": return GrayBox.Mat(Color.Lerp(team, Color.white, 0.4f));
+                // Glossy painted plastic armor, satin metal, soft skin: cartoon shapes, believable lighting.
+                case "Team": return GrayBox.Shiny(team, 0.5f, 0f);
+                case "TeamDark": return GrayBox.Shiny(Color.Lerp(team, Color.black, 0.28f), 0.45f, 0f);
+                case "TeamLight": return GrayBox.Shiny(Color.Lerp(team, Color.white, 0.4f), 0.55f, 0f);
                 case "GlowTeam": return GrayBox.Glow(team);
                 case "Glass": return GrayBox.Glass(HelmetGlass);
-                case "Tint": return GrayBox.Mat(tint);
+                case "Tint": return GrayBox.Shiny(tint, 0.12f, 0f);
             }
-            if (material.StartsWith("Color:")) return GrayBox.Mat(ParseHex(material.Substring(6)));
+            if (material.StartsWith("Color:"))
+            {
+                string hex = material.Substring(6).ToLowerInvariant();
+                if (MetalHexes.Contains(hex)) return GrayBox.Shiny(ParseHex(hex), 0.62f, 0.55f);
+                if (SkinHexes.Contains(hex)) return GrayBox.Shiny(ParseHex(hex), 0.25f, 0f);
+                return GrayBox.Shiny(ParseHex(hex), 0.22f, 0f);
+            }
             if (material.StartsWith("Glow:")) return GrayBox.Glow(ParseHex(material.Substring(5)));
             return GrayBox.Mat(Color.magenta);
         }

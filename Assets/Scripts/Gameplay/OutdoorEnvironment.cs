@@ -43,11 +43,34 @@ namespace ArenaShooter.Gameplay
             sun.color = new Color(1f, 0.9f, 0.86f);
             sun.intensity = 1.25f;
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.7f;
+            sun.shadowStrength = 0.78f;
+            sun.shadowNormalBias = 0.3f;
             sun.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
             RenderSettings.sun = sun;
 
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
+            RenderSettings.reflectionIntensity = 0.85f;
             DynamicGI.UpdateEnvironment();
+        }
+
+        /// <summary>
+        /// One realtime reflection probe over the whole map, rendered once after it is built, so
+        /// glossy armor and metal reflect this sky and level instead of a stale default.
+        /// </summary>
+        public static void RefreshReflections(Transform mapRoot)
+        {
+            var go = new GameObject("ReflectionProbe");
+            go.transform.SetParent(mapRoot, false);
+            go.transform.localPosition = new Vector3(0f, 6f, 0f);
+            var probe = go.AddComponent<ReflectionProbe>();
+            probe.mode = ReflectionProbeMode.Realtime;
+            probe.refreshMode = ReflectionProbeRefreshMode.ViaScripting;
+            probe.size = new Vector3(400f, 200f, 400f);
+            probe.resolution = 128;
+            probe.importance = 1;
+            probe.intensity = 0.9f;
+            probe.clearFlags = ReflectionProbeClearFlags.Skybox;
+            probe.RenderProbe();
         }
 
         private static Light FindOrCreateSun()

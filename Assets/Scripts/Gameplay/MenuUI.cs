@@ -137,7 +137,7 @@ namespace ArenaShooter.Gameplay
             var p = new Page { Title = "SPACE GRUNTS" };
             p.Items.Add(Button("Play vs Bots", "Free-for-All against bots.", () => Push(SetupPage())));
             p.Items.Add(Button("Multiplayer", "Play with Steam friends: host a game or join one.", () => Push(MultiplayerPage())));
-            p.Items.Add(Button("Settings", "Sensitivity, controller, field of view, volume.", () => Push(SettingsPage())));
+            p.Items.Add(Button("Settings", "Sensitivity, controller, field of view, graphics, volume.", () => Push(SettingsPage())));
             p.Items.Add(Button("Controls", "Keyboard + mouse and Xbox controller layouts.", () => Push(ControlsPage())));
             p.Items.Add(Button("Quit", "Close the game.", Quit));
             return p;
@@ -253,6 +253,8 @@ namespace ArenaShooter.Gameplay
             p.Items.Add(Toggle("Vibration", () => GameSettings.Rumble, v => GameSettings.Rumble = v, null));
             p.Items.Add(Slider("Field of view", 55f, 80f, 1f, () => GameSettings.FieldOfView, v => GameSettings.FieldOfView = v, v => v.ToString("0") + "°", "Vertical field of view."));
             p.Items.Add(Slider("Volume", 0f, 1f, 0.05f, () => GameSettings.Volume, v => GameSettings.Volume = v, v => Mathf.RoundToInt(v * 100f) + "%", null));
+            p.Items.Add(Choice("Graphics quality", GraphicsSetup.Names, () => GameSettings.GraphicsQuality, v => { GameSettings.GraphicsQuality = v; GameSettings.Save(); },
+                "Shadows, anti-aliasing, glow and tone mapping. Grass density changes with the next match."));
             p.Items.Add(Toggle("Show controls hint", () => GameSettings.ShowControlsHint, v => GameSettings.ShowControlsHint = v, "The small controls panel in the top-left during matches."));
             p.Items.Add(Button("Back", null, Back));
             return p;
@@ -268,7 +270,9 @@ namespace ArenaShooter.Gameplay
                     "Move / look         WASD / mouse            Left stick / right stick\n" +
                     "Jump                Space                   A\n" +
                     "Fire                Left mouse              RT\n" +
-                    "Scope (Long Zapper) Right mouse             LT or click right stick\n" +
+                    "Zoom / scope        Right mouse             Click right stick\n" +
+                    "Crouch (hold)       Left Ctrl or C          B or click left stick\n" +
+                    "Throw grenade       G                       LT\n" +
                     "Reload              R                       X\n" +
                     "Pick up weapon      E                       Hold X\n" +
                     "Switch weapon       Q / wheel / 1 / 2       Y\n" +

@@ -21,6 +21,8 @@ namespace ArenaShooter.Gameplay
             GrayBox.GlowVisual(PrimitiveType.Sphere, "MoonBig", sky, new Vector3(320f, 210f, -260f), Vector3.one * 40f, new Color(0.75f, 0.95f, 1f));
             GrayBox.GlowVisual(PrimitiveType.Sphere, "MoonSmall", sky, new Vector3(250f, 150f, -330f), Vector3.one * 16f, new Color(1f, 0.95f, 0.75f));
 
+            BuildClouds(sky);
+
             // Floating rocks just outside the arena, bobbing slowly (twinned for symmetry).
             var rng = new System.Random(77);
             float Range(float min, float max) => min + (float)rng.NextDouble() * (max - min);
@@ -41,6 +43,45 @@ namespace ArenaShooter.Gameplay
                 }
             }
         }
+
+        /// <summary>Puffy lit clouds (clusters of squashed spheres) in a ring high above the arena. No shadows.</summary>
+        private static void BuildClouds(Transform sky)
+        {
+            var clouds = new GameObject("Clouds").transform;
+            clouds.SetParent(sky, false);
+            clouds.gameObject.AddComponent<CloudDrift>();
+            var rng = new System.Random(123);
+            float Range(float min, float max) => min + (float)rng.NextDouble() * (max - min);
+            var white = new Color(1f, 0.97f, 1f);
+            for (int i = 0; i < 14; i++)
+            {
+                var cloud = new GameObject("Cloud").transform;
+                cloud.SetParent(clouds, false);
+                float angle = i * (360f / 14f) + Range(-10f, 10f);
+                cloud.localPosition = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * Range(95f, 150f) + Vector3.up * Range(55f, 80f);
+                cloud.localRotation = Quaternion.Euler(0f, Range(0f, 360f), 0f);
+                float size = Range(9f, 16f);
+                int puffs = 4 + rng.Next(4);
+                for (int p = 0; p < puffs; p++)
+                {
+                    var pos = new Vector3(Range(-1.2f, 1.2f) * size, Range(-0.1f, 0.3f) * size, Range(-0.5f, 0.5f) * size);
+                    float s = size * Range(0.55f, 1f);
+                    var puff = GrayBox.Visual(PrimitiveType.Sphere, "Puff", cloud, pos, new Vector3(s * 1.3f, s * 0.7f, s), white);
+                    var r = puff.GetComponent<Renderer>();
+                    r.sharedMaterial = GrayBox.Shiny(white, 0f, 0f);
+                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    r.receiveShadows = false;
+                }
+            }
+        }
+    }
+
+    /// <summary>Slow spin for the cloud layer around the arena.</summary>
+    public class CloudDrift : MonoBehaviour
+    {
+        public float degreesPerSecond = 0.35f;
+
+        private void Update() => transform.Rotate(0f, degreesPerSecond * Time.deltaTime, 0f, Space.World);
     }
 
     /// <summary>Gentle up/down drift for floating decorations.</summary>
