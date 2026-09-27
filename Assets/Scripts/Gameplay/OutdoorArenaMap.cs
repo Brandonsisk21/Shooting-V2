@@ -72,7 +72,7 @@ namespace ArenaShooter.Gameplay
             b.Ramp("CenterRamp", new Vector3(2.5f, 0f, 13f), new Vector3(2.5f, top, 5f), 3.5f, OutdoorPalette.Stone);
 
             // Boulder steps: ground -> 1.2 m -> 2.2 m -> 3 m platform (each rise is under the 1.3 m jump).
-            b.Box("CenterStepLow", new Vector3(8f, 0.6f, 1f), new Vector3(2f, 1.2f, 3f), OutdoorPalette.Rock);
+            b.Box("CenterStepLow", new Vector3(8f, 0.6f, 1f), new Vector3(2f, 1.2f, 3f), OutdoorPalette.Rock); // flat tops: you stand on these
             b.Box("CenterStepHigh", new Vector3(6f, 1.1f, 1.5f), new Vector3(2f, 2.2f, 2f), OutdoorPalette.RockLight);
 
             // Landing-pad dressing: glowing ring around the pad and beacon lights on the corner posts.
@@ -119,8 +119,8 @@ namespace ArenaShooter.Gameplay
             b.Ramp("OverlookRamp", new Vector3(8f, deck, 26f), new Vector3(3f, over, 26f), 2f, OutdoorPalette.Stone);
 
             // Crates in the tunnel under the deck.
-            b.Box("TunnelCrate", new Vector3(5f, 0.6f, 24f), new Vector3(1.2f, 1.2f, 1.2f), OutdoorPalette.Crate, 15f);
-            b.Box("TunnelCrate2", new Vector3(-4f, 0.6f, 25.5f), new Vector3(1.2f, 1.2f, 1.2f), OutdoorPalette.Crate, -10f);
+            b.Crate("TunnelCrate", new Vector3(5f, 0.6f, 24f), 1.2f, 15f);
+            b.Crate("TunnelCrate2", new Vector3(-4f, 0.6f, 25.5f), 1.2f, -10f);
 
             // Team stripe along the deck's front edge and glowing portholes on the hull wall.
             b.Visual(PrimitiveType.Cube, "DeckStripe", new Vector3(0f, deck - 0.3f, 19.98f), new Vector3(18f, 0.22f, 0.04f), red, blue);
@@ -145,9 +145,9 @@ namespace ArenaShooter.Gameplay
             b.Tree("Tree_BaseWest", new Vector3(-7f, 0f, 16f), 4.5f, 1.6f);
             b.Tree("Tree_Corner", new Vector3(-16f, 0f, -20f), 4.2f, 1.8f);
 
-            b.Rock("Rock_NearRamp", new Vector3(7f, 0f, -13f), new Vector3(3f, 1.6f, 1.6f), 20f);
-            b.Rock("Rock_Field", new Vector3(-10f, 0f, 3f), new Vector3(2.5f, 2f, 2.5f), 35f);
-            b.Rock("Rock_Lane", new Vector3(12f, 0f, -8f), new Vector3(2f, 1.5f, 3f), 10f);
+            b.RockBox("Rock_NearRamp", new Vector3(7f, 0.8f, -13f), new Vector3(3f, 1.6f, 1.6f), OutdoorPalette.Rock, 20f);
+            b.RockBox("Rock_Field", new Vector3(-10f, 1f, 3f), new Vector3(2.5f, 2f, 2.5f), OutdoorPalette.RockLight, 35f);
+            b.RockBox("Rock_Lane", new Vector3(12f, 0.75f, -8f), new Vector3(2f, 1.5f, 3f), OutdoorPalette.Rock, 10f);
 
             b.Box("LowWall", new Vector3(-2.5f, 0.6f, 10f), new Vector3(3.5f, 1.2f, 0.6f), OutdoorPalette.StoneDark);
         }
@@ -160,6 +160,12 @@ namespace ArenaShooter.Gameplay
         {
             var red = OutdoorPalette.RedAccent;
             var blue = OutdoorPalette.BlueAccent;
+            if (ModelLibrary.Has("dropship"))
+            {
+                // Nose pointing along -x, tipped nose-down and rolled onto a wing: crash-landed.
+                b.ModelPair("dropship", new Vector3(1f, 4.2f, 34.5f), new Vector3(7f, -90f, 9f), 0.8f, red, blue);
+                return;
+            }
             // Lying along x, nose down and slightly buried, the top showing over the 6.5 m wall.
             b.Visual(PrimitiveType.Capsule, "ShipHull", new Vector3(1f, 5f, 32f), new Vector3(7f, 11f, 6.5f), OutdoorPalette.Stone, new Vector3(0f, 0f, 84f));
             b.Visual(PrimitiveType.Capsule, "ShipStripe", new Vector3(1f, 5.05f, 32f), new Vector3(7.1f, 3f, 6.6f), red, blue, new Vector3(0f, 0f, 84f));
@@ -189,18 +195,18 @@ namespace ArenaShooter.Gameplay
             for (float z = -HalfLength - 2f; z <= HalfLength + 2f; z += 4.5f)
             {
                 float h = Range(7f, 13f);
-                b.Box("Cliff_Side", new Vector3(HalfWidth + 4f + Range(0f, 1.5f), h / 2f, z), new Vector3(Range(5f, 7f), h, Range(4.5f, 6f)),
+                b.RockBox("Cliff_Side", new Vector3(HalfWidth + 4f + Range(0f, 1.5f), h / 2f, z), new Vector3(Range(5f, 7f), h, Range(4.5f, 6f)),
                     rng.Next(2) == 0 ? OutdoorPalette.Cliff : OutdoorPalette.CliffLight, Range(-12f, 12f));
             }
             for (float x = 0f; x <= HalfWidth + 4f; x += 4.5f)
             {
                 // Only x >= 0 here: the twin covers the other side of the far end.
                 float h = Range(8f, 14f);
-                b.Box("Cliff_End", new Vector3(x, h / 2f, HalfLength + 3f + Range(0f, 1.5f)), new Vector3(Range(4.5f, 6f), h, Range(5f, 7f)),
+                b.RockBox("Cliff_End", new Vector3(x, h / 2f, HalfLength + 3f + Range(0f, 1.5f)), new Vector3(Range(4.5f, 6f), h, Range(5f, 7f)),
                     rng.Next(2) == 0 ? OutdoorPalette.Cliff : OutdoorPalette.CliffLight, Range(-12f, 12f));
                 if (x > 0f)
                 {
-                    b.Box("Cliff_End", new Vector3(-x, h / 2f, HalfLength + 3.5f), new Vector3(Range(4.5f, 6f), h, Range(5f, 7f)),
+                    b.RockBox("Cliff_End", new Vector3(-x, h / 2f, HalfLength + 3.5f), new Vector3(Range(4.5f, 6f), h, Range(5f, 7f)),
                         OutdoorPalette.Cliff, Range(-12f, 12f));
                 }
             }
@@ -212,7 +218,7 @@ namespace ArenaShooter.Gameplay
                 float distance = Range(85f, 120f);
                 Vector3 pos = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance;
                 float h = Range(14f, 28f);
-                b.Box("Hill", new Vector3(pos.x, h / 2f - 2f, pos.z), new Vector3(Range(30f, 50f), h, Range(25f, 40f)), OutdoorPalette.Hills, angle);
+                b.RockBox("Hill", new Vector3(pos.x, h / 2f - 2f, pos.z), new Vector3(Range(30f, 50f), h, Range(25f, 40f)), OutdoorPalette.Hills, angle);
             }
             GrayBox.Box("FarGround", new Vector3(0f, -0.6f, 0f), new Vector3(320f, 1f, 320f), OutdoorPalette.Hills, root);
         }

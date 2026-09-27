@@ -58,13 +58,6 @@ namespace ArenaShooter.Gameplay
         public GameObject[] Visual(PrimitiveType type, string name, Vector3 center, Vector3 scale, Color color, Vector3 euler = default, bool glow = false) =>
             Visual(type, name, center, scale, color, color, euler, glow);
 
-        /// <summary>A chunky boulder: a large box with a smaller offset box on top.</summary>
-        public void Rock(string name, Vector3 basePosition, Vector3 size, float yaw)
-        {
-            BuildRock(name + "_A", basePosition, size, yaw);
-            BuildRock(name + "_B", Twin(basePosition), size, yaw + 180f);
-        }
-
         public SpawnPoint[] Spawn(string name, Vector3 feetPosition)
         {
             return new[]
@@ -74,11 +67,78 @@ namespace ArenaShooter.Gameplay
             };
         }
 
+        /// <summary>
+        /// A rock-shaped obstacle: the box stays as the (invisible) collider, dressed with a
+        /// lumpy 3D rock stretched over it. Falls back to the visible box without models.
+        /// </summary>
+        public void RockBox(string name, Vector3 center, Vector3 size, Color color, float yaw = 0f)
+        {
+            BuildRockBox(name + "_A", center, size, color, yaw);
+            BuildRockBox(name + "_B", Twin(center), size, color, yaw + 180f);
+        }
+
+        /// <summary>A supply crate obstacle: invisible box collider + crate model.</summary>
+        public void Crate(string name, Vector3 center, float size, float yaw)
+        {
+            foreach (var (pos, rot) in new[] { (center, yaw), (Twin(center), yaw + 180f) })
+            {
+                var box = GrayBox.Box(name, pos, Vector3.one * size, OutdoorPalette.Crate, Root, Quaternion.Euler(0f, rot, 0f));
+                if (!ModelLibrary.Has("crate")) continue;
+                box.GetComponent<Renderer>().enabled = false;
+                ModelLibrary.SpawnFitted("crate", box.transform.parent, pos, Vector3.one * size, Quaternion.Euler(0f, rot, 0f), Color.white, inflate: 1.02f);
+            }
+        }
+
+        /// <summary>A 3D model pair with team colors per half (e.g. the crashed dropships).</summary>
+        public void ModelPair(string model, Vector3 position, Vector3 euler, float scale, Color teamA, Color teamB)
+        {
+            foreach (var (pos, rot, team) in new[]
+                     {
+                         (position, Quaternion.Euler(euler), teamA),
+                         (Twin(position), Quaternion.Euler(0f, 180f, 0f) * Quaternion.Euler(euler), teamB),
+                     })
+            {
+                var holder = new GameObject(model).transform;
+                holder.SetParent(Root, false);
+                holder.SetPositionAndRotation(pos, rot);
+                holder.localScale = Vector3.one * scale;
+                ModelLibrary.Spawn(model, holder, team);
+            }
+        }
+
+        private void BuildRockBox(string name, Vector3 center, Vector3 size, Color color, float yaw)
+        {
+            var rotation = Quaternion.Euler(0f, yaw, 0f);
+            var box = GrayBox.Box(name, center, size, color, Root, rotation);
+            if (!ModelLibrary.Has("rock_a")) return;
+            box.GetComponent<Renderer>().enabled = false;
+            // Pick a rock shape from the position (stable between runs, varied across the map).
+            string variant = "rock_" + "abc"[Mathf.Abs(Mathf.RoundToInt(center.x * 7f + center.z * 13f + center.y * 3f)) % 3];
+            ModelLibrary.SpawnFitted(variant, Root, center, size, rotation, Color.white, color, inflate: 1.12f).name = name + "_Rock";
+        }
+
         private void BuildMushroom(string name, Vector3 basePosition, float height, float capRadius)
         {
             var tree = new GameObject(name).transform;
             tree.SetParent(Root, false);
             tree.position = basePosition;
+
+            if (ModelLibrary.Has("mushroom"))
+            {
+                // 3D mushroom scaled so its stalk top matches `height`; colliders sized to match.
+                const float modelStalkTop = 3.9f, modelCapRadius = 1.7f, modelCapCenter = 4.4f;
+                float s = height / modelStalkTop;
+                var holder = new GameObject("Model").transform;
+                holder.SetParent(tree, false);
+                holder.localScale = Vector3.one * s;
+                ModelLibrary.Spawn("mushroom", holder, Color.white);
+                var stalk = GrayBox.Solid(PrimitiveType.Cylinder, "StalkCollider", tree, basePosition + Vector3.up * (height * 0.5f),
+                    new Vector3(0.8f * s, height * 0.5f, 0.8f * s), OutdoorPalette.Trunk);
+                stalk.GetComponent<Renderer>().enabled = false;
+                GrayBox.Blocker("CapCollider", basePosition + Vector3.up * (modelCapCenter * s),
+                    new Vector3(modelCapRadius * 1.5f * s, 1.0f * s, modelCapRadius * 1.5f * s), tree);
+                return;
+            }
 
             const float stalkRadius = 0.35f;
             GrayBox.Solid(PrimitiveType.Cylinder, "Stalk", tree, basePosition + Vector3.up * (height * 0.5f),
@@ -100,16 +160,5 @@ namespace ArenaShooter.Gameplay
             }
         }
 
-        private void BuildRock(string name, Vector3 basePosition, Vector3 size, float yaw)
-        {
-            var rotation = Quaternion.Euler(0f, yaw, 0f);
-            var rock = new GameObject(name).transform;
-            rock.SetParent(Root, false);
-            rock.position = basePosition;
-            GrayBox.Box("Base", basePosition + Vector3.up * (size.y * 0.5f), size, OutdoorPalette.Rock, rock, rotation);
-            Vector3 topSize = new Vector3(size.x * 0.6f, size.y * 0.35f, size.z * 0.6f);
-            Vector3 topCenter = basePosition + rotation * new Vector3(size.x * 0.12f, size.y + topSize.y * 0.5f, -size.z * 0.1f);
-            GrayBox.Box("Top", topCenter, topSize, OutdoorPalette.RockLight, rock, rotation * Quaternion.Euler(0f, 17f, 0f));
-        }
     }
 }

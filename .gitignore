@@ -43,3 +43,7 @@ Thumbs.db
 !Tools/**/*.csproj
 Tools/**/bin/
 Tools/**/obj/
+
+# Python
+__pycache__/
+*.pyc

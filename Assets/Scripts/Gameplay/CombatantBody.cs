@@ -50,6 +50,48 @@ namespace ArenaShooter.Gameplay
 
             var visual = new GameObject("GruntVisual").transform;
             visual.SetParent(root, false);
+            var grunt = combatant.gameObject.AddComponent<GruntVisual>();
+            grunt.visual = visual;
+            grunt.aim = head;
+            grunt.color = color;
+
+            var model = ModelLibrary.Spawn("grunt", visual, color);
+            if (model != null) return RigModel(model, visual, grunt);
+            return BuildPrimitiveLook(visual, head, color, grunt);
+        }
+
+        /// <summary>
+        /// Hooks the 3D grunt's parts up for animation: arms move to a pivot that follows aim pitch
+        /// (so the held blaster points where the bot looks), legs swing, head + helmet bobble.
+        /// </summary>
+        private static Transform RigModel(Transform model, Transform visual, GruntVisual grunt)
+        {
+            var armsPivot = new GameObject("ArmsPivot").transform;
+            armsPivot.SetParent(visual, false);
+            var arms = model.Find("Arms");
+            armsPivot.localPosition = arms != null ? arms.localPosition : new Vector3(0f, 1.02f, 0f);
+            if (arms != null) arms.SetParent(armsPivot, true);
+
+            var gunMount = model.Find("Marker_gunMount");
+            if (gunMount == null)
+            {
+                gunMount = new GameObject("GunMount").transform;
+                gunMount.localPosition = new Vector3(0.24f, 1.25f, 0.2f);
+                gunMount.SetParent(model, false);
+            }
+            gunMount.SetParent(armsPivot, true);
+
+            grunt.armsPivot = armsPivot;
+            grunt.legL = model.Find("LegL");
+            grunt.legR = model.Find("LegR");
+            grunt.headParts = new[] { model.Find("Head"), model.Find("Helmet") };
+            grunt.helmet = model.Find("Helmet");
+            return gunMount;
+        }
+
+        /// <summary>Fallback look built from primitives (used if the model file is missing).</summary>
+        private static Transform BuildPrimitiveLook(Transform visual, Transform head, Color color, GruntVisual grunt)
+        {
             Color armor = color;
             Color armorDark = Color.Lerp(color, Color.black, 0.25f);
 
@@ -88,10 +130,7 @@ namespace ArenaShooter.Gameplay
             var bubble = GrayBox.Visual(PrimitiveType.Sphere, "HelmetBubble", headGroup, new Vector3(0f, 0.25f, 0f), Vector3.one * 0.62f, HelmetGlass);
             bubble.GetComponent<Renderer>().sharedMaterial = GrayBox.Glass(HelmetGlass);
 
-            var grunt = combatant.gameObject.AddComponent<GruntVisual>();
-            grunt.visual = visual;
-            grunt.headGroup = headGroup;
-            grunt.color = color;
+            grunt.headParts = new[] { headGroup };
 
             var gunMount = new GameObject("GunMount").transform;
             gunMount.SetParent(head, false);

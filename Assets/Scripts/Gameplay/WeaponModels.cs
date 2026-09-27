@@ -3,8 +3,9 @@ using UnityEngine;
 namespace ArenaShooter.Gameplay
 {
     /// <summary>
-    /// Goofy toy-blaster weapon models (GDD 5.1), built from primitives so the same model serves
-    /// the first-person view, pickups and bots' hands. Local space: +z forward, origin at the grip.
+    /// Goofy toy-blaster weapon models (GDD 5.1): the 3D models from Resources/Models (with a
+    /// primitive fallback). The same model serves the first-person view, pickups and bots' hands.
+    /// Local space: +z forward, origin at the grip.
     /// </summary>
     public static class WeaponModels
     {
@@ -18,10 +19,13 @@ namespace ArenaShooter.Gameplay
         /// <summary>Builds the model under <paramref name="parent"/> and returns its muzzle point.</summary>
         public static Transform Build(string weaponId, Transform parent, float scale = 1f)
         {
-            var root = new GameObject("Model_" + weaponId).transform;
+            var root = new GameObject("Weapon_" + weaponId).transform;
             root.SetParent(parent, false);
             root.localScale = Vector3.one * scale;
-            Transform muzzle = weaponId == "sniper" ? BuildLongZapper(root) : BuildPewRifle(root);
+
+            var model = ModelLibrary.Spawn(weaponId == "sniper" ? "long_zapper" : "pew_rifle", root, Color.white);
+            Transform muzzle = model != null ? model.Find("Marker_muzzle") : null;
+            if (muzzle == null) muzzle = weaponId == "sniper" ? BuildLongZapper(root) : BuildPewRifle(root);
             foreach (var r in root.GetComponentsInChildren<Renderer>(true))
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return muzzle;
