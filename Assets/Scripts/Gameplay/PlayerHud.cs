@@ -418,7 +418,7 @@ namespace ArenaShooter.Gameplay
                 float alpha = Mathf.Clamp01(FeedDuration - age);
 
                 string killer = k.Killer != null ? k.Killer.displayName : "";
-                string weapon = k.Killer == null ? "suicide" : (k.WeaponId ?? "").ToUpperInvariant() + (k.Headshot ? " +HS" : "");
+                string weapon = k.Killer == null ? "oops" : (k.WeaponId == "sniper" ? "ZAPPED" : "PEWED") + (k.Headshot ? " +HS" : "");
                 string victim = k.Victim.displayName;
                 float kw = killer.Length > 0 ? _label.CalcSize(new GUIContent(killer)).x : 0f;
                 float ww = _small.CalcSize(new GUIContent(weapon)).x;
@@ -482,8 +482,8 @@ namespace ArenaShooter.Gameplay
         {
             if (sniperPad == null) return;
             string text = sniperPad.HasWeaponOnPad
-                ? "SNIPER ON PAD"
-                : $"SNIPER IN {FormatTime(sniperPad.TimeUntilNextSpawn)}";
+                ? "LONG ZAPPER ON PAD"
+                : $"LONG ZAPPER IN {FormatTime(sniperPad.TimeUntilNextSpawn)}";
             var size = _small.CalcSize(new GUIContent(text));
             var r = new Rect((w - size.x) / 2f - 12f, 12f, size.x + 24f, 24f);
             HudSkin.RoundedRect(r, HudSkin.Panel);

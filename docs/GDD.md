@@ -1,4 +1,4 @@
-# Arena Shooter — Game Design Document (v0.5 / Phase 1)
+# Space Grunts — Game Design Document (v0.6)
 
 > Status: DRAFT. Sections marked **[OPEN QUESTION]** need a decision before implementation begins.
 > This document is meant to be dropped into the project repo (e.g. `/docs/GDD.md`) so Claude Code can reference it across sessions.
@@ -94,7 +94,7 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 ## 3. Map Design
 
-### 3.1 First Map: "Overlook" (working title) — Midship-inspired, outdoor
+### 3.1 First Map: "Crash Site" — Midship-inspired, outdoor
 - Fully **symmetrical** (either point symmetry/180° rotational, like Midship, or mirror symmetry).
 - Sniper spawns at the **exact center**, elevated or in a contested chokepoint, visible/reachable from multiple angles so no single spot dominates.
 - Multiple verticality layers (upper walkways, lower tunnels) connecting back to center — classic Halo maps use 2–3 elevation tiers.
@@ -111,7 +111,7 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - **Side ridges (tier 1, 2 m):** raised rock ledges along both long sides with partial cover walls, used as flanking routes.
 - **Ground cover:** trees, boulders and a low wall break up center-field sightlines.
 - **Spawns:** 8 (4 per half: base deck, base landing, two corners), all facing the center. FFA picks the spawn farthest from the nearest living enemy (random when there are none).
-- **[OPEN QUESTION]** Final name for the map.
+- **Name (DECIDED):** "Crash Site" (was working title "Crash Site"). The tier-2 platforms above each base are still called "overlooks".
 
 ### 3.2 Player Count
 **DECIDED:** 4–8 players FFA (design the map with ~6 spawn points as a middle-ground target, expandable toward 8).
@@ -148,17 +148,19 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 ---
 
-### 5.1 Theme & final art style (PROPOSAL, awaiting owner sign-off)
+### 5.1 Theme & final art style (DECIDED: "Space Grunts")
 - **DECIDED:** final art is a **goofy cartoon style**, for characters **and** weapons.
-- **Proposed theme: "Space Grunts"** (working title): goofy cartoon space marines. Squat, bobble-headed troopers in oversized fishbowl helmets and chunky armor who crash-landed on a weird little alien planet and settle every argument with toy-like blasters.
+- **DECIDED theme and title: "Space Grunts"**: goofy cartoon space marines. Squat, bobble-headed troopers in oversized fishbowl helmets and chunky armor who crash-landed on a weird little alien planet and settle every argument with toy-like blasters.
   - **Why it fits:** combines both ideas (space + goofy marines); keeps the outdoor arena (it becomes an alien planet surface); gives Red/Blue bases an identity (two crashed dropships), which suits later team modes.
-  - **World:** candy-colored alien grass, bulb and mushroom trees instead of oaks, floating rocks at the map edge, a huge ringed planet in the sky. Map "Overlook" becomes **"Crash Site"**.
+  - **World:** candy-colored alien grass, bulb and mushroom trees instead of oaks, floating rocks at the map edge, a huge ringed planet in the sky. Map "Crash Site" becomes **"Crash Site"**.
   - **Characters:** bobble heads with round visors, stubby legs, a big backpack; each player a bright color. Silhouettes stay chunky and readable (GDD pillar 3).
   - **Weapons:** Rifle becomes the **"Pew Rifle"**, a chunky blaster with a little antenna firing glowing bolts (still hitscan). Sniper becomes the **"Long Zapper"**, an absurdly long barrel with a satellite-dish scope.
   - **Humor, without breaking "crunchy" combat feel:** kills pop the helmet off in a confetti poof, a goofy announcer, "pew" sound design layered over punchy impacts.
   - **Style references:** Ratchet & Clank's creatures, Fortnite's bright shapes, Splatoon's readability.
 - Alternatives considered: *backyard toy soldiers* (tiny plastic army men in a giant backyard; strong scale gag, but a crowded theme) and *food-fight arena* (fun, but weapons get harder to read).
-- **[OPEN QUESTION]** Approve "Space Grunts" (or pick an alternative), and the game's title.
+- **First art pass (done, still built from primitives in code, no model assets yet):** alien palette and lavender sky with a ringed planet, moons and floating rocks; mushroom trees; crashed dropships behind each base with team stripes, portholes and glowing engines; landing-pad ring and beacons around the Long Zapper; bobble-head grunts in fishbowl helmets (helmet pops off + confetti on death); toy-blaster weapon models; glowing bolts/beam; "pew" sound effects; goofy bot names (Pvt. Pickles, Sgt. Noodle...).
+- **Gameplay is unchanged by art:** hitboxes, collision and the map layout are exactly as before; decorations have no collision (or sit outside the play space).
+- Next art step (later): real 3D models, textures and animation to replace the primitive shapes, following this look.
 
 ## 6. Audio (placeholder — not blocking Phase 1 code)
 - Weapon fire, hit confirmation (headshot vs. body should sound distinct), footsteps, power-weapon spawn callout, death/respawn stingers.
@@ -202,10 +204,15 @@ Status: everything below is implemented; the owner has played the first slices, 
 Goal: host a match from the menu, send a friend a short **join code**, play together (plus bots) over the internet with no port forwarding.
 
 - **Recommended stack:** Unity **Netcode for GameObjects** (host/client: the host's game runs the match, the bots and the rules) + Unity Gaming Services **Relay** (connects players through Unity's servers using join codes) + **Lobby** (optional: browse or quick-join). Free tier is fine for playing with friends. Needs a free Unity Cloud project linked to this Unity project (the owner has to do that step).
-- **Later alternative for a public release:** Steam (invite through Steam friends, Steam's own relay). Needs the Steam Direct fee and an app ID, so better once the game is further along.
+- **DECIDED:** go with Unity's stack (owner approved).
+- **Steam without listing the game** is also possible and was raised by the owner:
+  - *Test app ID 480 ("Spacewar")*: Valve's public sample app. Any unlisted game can use it with Steamworks to get Steam friends invites, lobbies and Steam's relay for free. Common for private play-tests; the downsides are that it shows as "Spacewar" in Steam, lobbies are shared with everyone else using 480 (must be filtered), and it's not meant for a real release.
+  - *Own app ID, unreleased*: after the one-time Steam Direct fee, the game can stay unlisted and friends get it through Steam keys (auto-updates via Steam).
+  - *"Add a Non-Steam Game"* only puts an .exe in the Steam library; it doesn't provide networking by itself.
+- **Design choice:** gameplay networking (Netcode for GameObjects) is the same either way; only the *transport* differs (Unity Transport + Relay vs. a Steam transport). Build on NGO so either can be used.
 - **Work involved:** sync player movement (with client-side prediction so it feels responsive), host-authoritative hits/damage/health, weapons, pickups, the sniper pad, score and kill feed; bots run on the host; menu flow for Host / Join-with-code / lobby.
 - Both players must run the **same build**.
-- **[OPEN QUESTION]** Go ahead with Netcode for GameObjects + Relay (recommended), and confirm the owner can create a free Unity Cloud project.
+- **[OPEN QUESTION]** Which transport first: Unity Relay join codes, or Steam invites via test app ID 480? (Can support both.)
 
 ## 9. Remaining Open Questions
 
@@ -213,9 +220,7 @@ All core Phase 1 decisions are now locked (see summary below). The only thing le
 
 1. Art reference for the *eventual* art pass (not urgent — Phase 1 is gray-box only, this matters once you get to the real art phase).
 2. Sniper "power weapon incoming" callout (optional polish, not required for Phase 1).
-3. Final name for the first map (working title "Overlook").
-4. Theme and game title (5.1).
-5. Multiplayer approach (9.1).
+3. Multiplayer transport: Unity Relay join codes vs. Steam invites (9.1).
 
 ### All decisions locked in for Phase 1:
 - **Engine:** Unity (C#)

@@ -1,20 +1,24 @@
-# Shooting-V2: Arena Shooter
+# Shooting-V2: Space Grunts
 
-A Halo 2–style first-person arena shooter in Unity (C#), PC only. The design lives in
+A Halo 2–style first-person arena shooter in Unity (C#), PC only, starring goofy cartoon space
+marines who crash-landed on a weird little alien planet. The design lives in
 [`docs/GDD.md`](docs/GDD.md).
 
 ## Current state: Phase 1 complete (gray-box), needs playtesting
 
 Press Play and the **main menu** opens over a live bots-only match. Pick **Play vs Bots** to set up
-a match (map, bots, difficulty, score/time limit) and drop into a **Free-for-All** on **Overlook** (working
-title): an outdoor, Midship-style arena with 180° symmetry ([layout sketch](docs/maps/overlook-layout.svg)),
+a match (map, bots, difficulty, score/time limit) and drop into a **Free-for-All** on **Crash Site**:
+a Midship-style alien-planet arena with 180° symmetry ([layout sketch](docs/maps/overlook-layout.svg)),
 a center sniper platform, Red (north) and Blue (south) bases with tunnels and overlooks, and side ridges.
 
 - **Bots** play on their own (no set paths): they roam, grab the sniper, hear gunfire, strafe,
   and fight you and each other, with human-like reaction time and aim. First to 25 kills or
   most kills after 10 minutes wins (both adjustable).
-- **Weapons:** Rifle (spawn weapon, 40 head / 25 body, 5 shots/s, 30 rounds) and Sniper
-  (center pad every 90 s, 100 head / 50 body, 2x scope, dropped on death).
+- **Weapons:** Pew Rifle (spawn weapon, 40 head / 25 body, 5 shots/s, 30 rounds) and Long Zapper,
+  the sniper (center pad every 90 s, 100 head / 50 body, 2x scope, dropped on death).
+- **Look:** first art pass of the goofy "Space Grunts" theme, built from shapes in code: bobble-head
+  grunts in fishbowl helmets (helmets pop off in confetti), toy blasters, crashed dropships, mushrooms,
+  a ringed planet in the sky, "pew" sounds.
 - **Health:** 100 HP, regenerates after 5 s without damage.
 - **HUD:** health + ammo panel bottom-left, kill feed, score, scoreboard, damage-direction arcs,
   red crosshair over enemies.

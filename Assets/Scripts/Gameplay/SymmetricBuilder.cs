@@ -33,12 +33,30 @@ namespace ArenaShooter.Gameplay
             GrayBox.Ramp(name + "_B", Twin(low), Twin(high), width, color, Root);
         }
 
-        /// <summary>A cartoony tree: cylinder trunk plus two overlapping sphere canopies. All solid.</summary>
+        /// <summary>
+        /// A giant alien mushroom: solid stalk, squashed pink cap with spots and glowing gills.
+        /// The cap blocks shots/movement via an invisible box that matches its shape.
+        /// </summary>
         public void Tree(string name, Vector3 basePosition, float height, float canopyRadius)
         {
-            BuildTree(name + "_A", basePosition, height, canopyRadius);
-            BuildTree(name + "_B", Twin(basePosition), height, canopyRadius);
+            BuildMushroom(name + "_A", basePosition, height, canopyRadius);
+            BuildMushroom(name + "_B", Twin(basePosition), height, canopyRadius);
         }
+
+        /// <summary>A decoration pair with no collision (outside the play space or flush on surfaces).</summary>
+        public GameObject[] Visual(PrimitiveType type, string name, Vector3 center, Vector3 scale, Color colorA, Color colorB, Vector3 euler = default, bool glow = false)
+        {
+            var rotA = Quaternion.Euler(euler);
+            var rotB = Quaternion.Euler(0f, 180f, 0f) * rotA;
+            var a = glow ? GrayBox.GlowVisual(type, name + "_A", Root, center, scale, colorA) : GrayBox.Visual(type, name + "_A", Root, center, scale, colorA);
+            var b = glow ? GrayBox.GlowVisual(type, name + "_B", Root, Twin(center), scale, colorB) : GrayBox.Visual(type, name + "_B", Root, Twin(center), scale, colorB);
+            a.transform.rotation = rotA;
+            b.transform.rotation = rotB;
+            return new[] { a, b };
+        }
+
+        public GameObject[] Visual(PrimitiveType type, string name, Vector3 center, Vector3 scale, Color color, Vector3 euler = default, bool glow = false) =>
+            Visual(type, name, center, scale, color, color, euler, glow);
 
         /// <summary>A chunky boulder: a large box with a smaller offset box on top.</summary>
         public void Rock(string name, Vector3 basePosition, Vector3 size, float yaw)
@@ -56,19 +74,30 @@ namespace ArenaShooter.Gameplay
             };
         }
 
-        private void BuildTree(string name, Vector3 basePosition, float height, float canopyRadius)
+        private void BuildMushroom(string name, Vector3 basePosition, float height, float capRadius)
         {
             var tree = new GameObject(name).transform;
             tree.SetParent(Root, false);
             tree.position = basePosition;
 
-            const float trunkRadius = 0.3f;
-            GrayBox.Solid(PrimitiveType.Cylinder, "Trunk", tree, basePosition + Vector3.up * (height * 0.5f),
-                new Vector3(trunkRadius * 2f, height * 0.5f, trunkRadius * 2f), OutdoorPalette.Trunk);
-            Vector3 canopy = basePosition + Vector3.up * (height + canopyRadius * 0.5f);
-            GrayBox.Solid(PrimitiveType.Sphere, "Canopy", tree, canopy, Vector3.one * canopyRadius * 2f, OutdoorPalette.Leaves);
-            GrayBox.Solid(PrimitiveType.Sphere, "CanopyTop", tree, canopy + new Vector3(0.4f, canopyRadius * 0.7f, -0.3f),
-                Vector3.one * canopyRadius * 1.3f, OutdoorPalette.LeavesLight);
+            const float stalkRadius = 0.35f;
+            GrayBox.Solid(PrimitiveType.Cylinder, "Stalk", tree, basePosition + Vector3.up * (height * 0.5f),
+                new Vector3(stalkRadius * 2f, height * 0.5f, stalkRadius * 2f), OutdoorPalette.Trunk);
+
+            // Visual() takes positions local to the mushroom; Solid()/Blocker() take world positions.
+            Vector3 cap = Vector3.up * (height + capRadius * 0.3f);
+            GrayBox.Visual(PrimitiveType.Sphere, "Cap", tree, cap, new Vector3(capRadius * 2f, capRadius * 0.85f, capRadius * 2f), OutdoorPalette.Leaves);
+            GrayBox.Blocker("CapCollider", basePosition + cap, new Vector3(capRadius * 1.5f, capRadius * 0.7f, capRadius * 1.5f), tree);
+
+            // White spots on top and a ring of glowing gills underneath.
+            for (int i = 0; i < 5; i++)
+            {
+                float a = i * 72f * Mathf.Deg2Rad;
+                var spot = cap + new Vector3(Mathf.Cos(a) * capRadius * 0.55f, capRadius * 0.34f, Mathf.Sin(a) * capRadius * 0.55f);
+                GrayBox.Visual(PrimitiveType.Sphere, "Spot", tree, spot, new Vector3(0.45f, 0.15f, 0.45f) * capRadius * 0.6f, OutdoorPalette.LeavesLight);
+                var gill = cap + new Vector3(Mathf.Cos(a + 0.6f) * capRadius * 0.6f, -capRadius * 0.3f, Mathf.Sin(a + 0.6f) * capRadius * 0.6f);
+                GrayBox.GlowVisual(PrimitiveType.Sphere, "Glow", tree, gill, Vector3.one * 0.18f, OutdoorPalette.Glow);
+            }
         }
 
         private void BuildRock(string name, Vector3 basePosition, Vector3 size, float yaw)

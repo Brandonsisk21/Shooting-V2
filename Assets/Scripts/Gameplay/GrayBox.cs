@@ -17,15 +17,15 @@ namespace ArenaShooter.Gameplay
         private static readonly Dictionary<(Color, Vector2), Material> Materials = new Dictionary<(Color, Vector2), Material>();
         private static Texture2D _grid;
         private static Material _vertexColorUnlit;
+        private static readonly Dictionary<Color, Material> GlassMaterials = new Dictionary<Color, Material>();
+        private static readonly Dictionary<Color, Material> GlowMaterials = new Dictionary<Color, Material>();
 
         public static Material Mat(Color color, Vector2? gridTiling = null)
         {
             Vector2 tiling = gridTiling ?? Vector2.zero;
             if (Materials.TryGetValue((color, tiling), out var cached) && cached != null) return cached;
 
-            var shader = Shader.Find("Standard");
-            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
-            var mat = new Material(shader) { color = color };
+            var mat = NewLit(color);
             if (gridTiling.HasValue)
             {
                 mat.mainTexture = GridTexture();
@@ -95,6 +95,55 @@ namespace ArenaShooter.Gameplay
             go.transform.localPosition = localPos;
             go.transform.localScale = localScale;
             go.GetComponent<Renderer>().sharedMaterial = Mat(color);
+            return go;
+        }
+
+        /// <summary>
+        /// A lit material. Cloned from a template in Resources so the Standard shader is included
+        /// in player builds (Shader.Find alone only works in the editor for unreferenced shaders).
+        /// </summary>
+        public static Material NewLit(Color color)
+        {
+            var template = Resources.Load<Material>("ArenaMaterials/Lit");
+            Material mat;
+            if (template != null) mat = new Material(template);
+            else
+            {
+                var shader = Shader.Find("Standard");
+                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+                mat = new Material(shader);
+            }
+            mat.color = color;
+            return mat;
+        }
+
+        /// <summary>Glassy see-through material (helmet bubbles, visors). Cached per color.</summary>
+        public static Material Glass(Color color)
+        {
+            if (GlassMaterials.TryGetValue(color, out var cached) && cached != null) return cached;
+            var template = Resources.Load<Material>("ArenaMaterials/LitTransparent");
+            var mat = template != null ? new Material(template) : NewLit(color);
+            mat.color = color;
+            GlassMaterials[color] = mat;
+            return mat;
+        }
+
+        /// <summary>Flat, unlit, fog-free color (glows, sky objects, effects). Cached per color.</summary>
+        public static Material Glow(Color color)
+        {
+            if (GlowMaterials.TryGetValue(color, out var cached) && cached != null) return cached;
+            var mat = new Material(VertexColorUnlit) { color = color };
+            GlowMaterials[color] = mat;
+            return mat;
+        }
+
+        /// <summary>A primitive with no collider using a glow material.</summary>
+        public static GameObject GlowVisual(PrimitiveType type, string name, Transform parent, Vector3 localPos, Vector3 localScale, Color color)
+        {
+            var go = Visual(type, name, parent, localPos, localScale, color);
+            var r = go.GetComponent<Renderer>();
+            r.sharedMaterial = Glow(color);
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return go;
         }
 

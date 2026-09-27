@@ -3,11 +3,12 @@ using UnityEngine;
 namespace ArenaShooter.Gameplay
 {
     /// <summary>
-    /// First real map (GDD 3.1), gray-box pass. Working title "Overlook": an outdoor, Midship-inspired
-    /// FFA arena for 4–8 players with 180° rotational symmetry.
+    /// First real map (GDD 3.1): "Crash Site", a Midship-inspired FFA arena for 4–8 players with
+    /// 180° rotational symmetry, dressed as an alien planet where two dropships crash-landed
+    /// (GDD 5.1). Decorations never change collision: the gray-box layout is the gameplay.
     ///
-    /// Playable area is 44 m (x) by 64 m (z), ringed by cliffs. North (+z) is the Red base and
-    /// south (-z) the Blue base; everything on one half has a rotated twin on the other.
+    /// Playable area is 44 m (x) by 64 m (z), ringed by cliffs. North (+z) is the Red dropship base and
+    /// south (-z) the Blue one; everything on one half has a rotated twin on the other.
     ///
     /// Elevation tiers:
     ///   0  ground (y 0): open center field, trees and boulders, tunnels under both bases
@@ -16,7 +17,7 @@ namespace ArenaShooter.Gameplay
     /// </summary>
     public static class OutdoorArenaMap
     {
-        public const string DisplayName = "Overlook (working title)";
+        public const string DisplayName = "Crash Site";
 
         private const float HalfWidth = 22f;   // x
         private const float HalfLength = 32f; // z
@@ -38,6 +39,8 @@ namespace ArenaShooter.Gameplay
             BuildSideRidges(b);
             BuildGroundCover(b);
             BuildBoundary(b, root);
+            BuildDropships(b);
+            SkyDecor.Build(b);
 
             // 8 spawns (4 per half), all facing the center. GDD 3.2: ~6 for 4–8 players, expandable to 8.
             map.Spawns.AddRange(b.Spawn("Spawn_BaseDeck", new Vector3(0f, 3.5f, 26.5f)));
@@ -71,6 +74,12 @@ namespace ArenaShooter.Gameplay
             // Boulder steps: ground -> 1.2 m -> 2.2 m -> 3 m platform (each rise is under the 1.3 m jump).
             b.Box("CenterStepLow", new Vector3(8f, 0.6f, 1f), new Vector3(2f, 1.2f, 3f), OutdoorPalette.Rock);
             b.Box("CenterStepHigh", new Vector3(6f, 1.1f, 1.5f), new Vector3(2f, 2.2f, 2f), OutdoorPalette.RockLight);
+
+            // Landing-pad dressing: glowing ring around the pad and beacon lights on the corner posts.
+            GrayBox.GlowVisual(PrimitiveType.Cylinder, "PadRing", root, new Vector3(0f, top + 0.015f, 0f), new Vector3(3.4f, 0.01f, 3.4f), OutdoorPalette.Glow);
+            GrayBox.Visual(PrimitiveType.Cylinder, "PadRingInner", root, new Vector3(0f, top + 0.02f, 0f), new Vector3(2.9f, 0.01f, 2.9f), OutdoorPalette.StoneDark);
+            foreach (var corner in new[] { new Vector3(4.6f, 0f, 4.6f), new Vector3(-4.6f, 0f, 4.6f) })
+                b.Visual(PrimitiveType.Sphere, "Beacon", corner + Vector3.up * (top + 2.15f), Vector3.one * 0.35f, OutdoorPalette.EngineGlow, glow: true);
 
             var pad = GrayBox.Box("SniperPad", new Vector3(0f, top + 0.05f, 0f), new Vector3(1.6f, 0.1f, 1.6f), OutdoorPalette.SniperPad, root);
             return pad.AddComponent<SniperSpawnPad>();
@@ -110,8 +119,13 @@ namespace ArenaShooter.Gameplay
             b.Ramp("OverlookRamp", new Vector3(8f, deck, 26f), new Vector3(3f, over, 26f), 2f, OutdoorPalette.Stone);
 
             // Crates in the tunnel under the deck.
-            b.Box("TunnelCrate", new Vector3(5f, 0.6f, 24f), new Vector3(1.2f, 1.2f, 1.2f), OutdoorPalette.Trunk, 15f);
-            b.Box("TunnelCrate2", new Vector3(-4f, 0.6f, 25.5f), new Vector3(1.2f, 1.2f, 1.2f), OutdoorPalette.Trunk, -10f);
+            b.Box("TunnelCrate", new Vector3(5f, 0.6f, 24f), new Vector3(1.2f, 1.2f, 1.2f), OutdoorPalette.Crate, 15f);
+            b.Box("TunnelCrate2", new Vector3(-4f, 0.6f, 25.5f), new Vector3(1.2f, 1.2f, 1.2f), OutdoorPalette.Crate, -10f);
+
+            // Team stripe along the deck's front edge and glowing portholes on the hull wall.
+            b.Visual(PrimitiveType.Cube, "DeckStripe", new Vector3(0f, deck - 0.3f, 19.98f), new Vector3(18f, 0.22f, 0.04f), red, blue);
+            foreach (float x in new[] { -10f, -6.5f, 6.5f, 10f })
+                b.Visual(PrimitiveType.Sphere, "Porthole", new Vector3(x, 5.3f, 27.98f), new Vector3(1.1f, 1.1f, 0.05f), OutdoorPalette.Window, glow: true);
         }
 
         /// <summary>Raised rock ledges along both long sides: a flanking route with partial cover.</summary>
@@ -136,6 +150,27 @@ namespace ArenaShooter.Gameplay
             b.Rock("Rock_Lane", new Vector3(12f, 0f, -8f), new Vector3(2f, 1.5f, 3f), 10f);
 
             b.Box("LowWall", new Vector3(-2.5f, 0.6f, 10f), new Vector3(3.5f, 1.2f, 0.6f), OutdoorPalette.StoneDark);
+        }
+
+        /// <summary>
+        /// A crashed dropship lying behind each base's back wall (outside the play space): hull,
+        /// cockpit bubble, tail fins, glowing engines and a team stripe. Visual only.
+        /// </summary>
+        private static void BuildDropships(SymmetricBuilder b)
+        {
+            var red = OutdoorPalette.RedAccent;
+            var blue = OutdoorPalette.BlueAccent;
+            // Lying along x, nose down and slightly buried, the top showing over the 6.5 m wall.
+            b.Visual(PrimitiveType.Capsule, "ShipHull", new Vector3(1f, 5f, 32f), new Vector3(7f, 11f, 6.5f), OutdoorPalette.Stone, new Vector3(0f, 0f, 84f));
+            b.Visual(PrimitiveType.Capsule, "ShipStripe", new Vector3(1f, 5.05f, 32f), new Vector3(7.1f, 3f, 6.6f), red, blue, new Vector3(0f, 0f, 84f));
+            b.Visual(PrimitiveType.Sphere, "ShipCockpit", new Vector3(-8f, 7.2f, 31f), new Vector3(3.2f, 2.2f, 2.6f), OutdoorPalette.Window, glow: true);
+            b.Visual(PrimitiveType.Cube, "ShipFinTop", new Vector3(11f, 10.3f, 32f), new Vector3(3.2f, 4f, 0.4f), red, blue, new Vector3(0f, 0f, -25f));
+            b.Visual(PrimitiveType.Cube, "ShipFinSide", new Vector3(11.5f, 6.8f, 29.5f), new Vector3(3f, 0.4f, 3.5f), red, blue, new Vector3(20f, 0f, -10f));
+            foreach (float z in new[] { 30.6f, 33.4f })
+            {
+                b.Visual(PrimitiveType.Cylinder, "ShipEngine", new Vector3(13f, 6f, z), new Vector3(1.8f, 1.2f, 1.8f), OutdoorPalette.StoneDark, new Vector3(0f, 0f, 84f));
+                b.Visual(PrimitiveType.Cylinder, "ShipEngineGlow", new Vector3(14.25f, 6.15f, z), new Vector3(1.4f, 0.05f, 1.4f), OutdoorPalette.EngineGlow, new Vector3(0f, 0f, 84f), glow: true);
+            }
         }
 
         /// <summary>Cliffs ring the arena (visual + solid), backed by tall invisible walls, with hills beyond.</summary>

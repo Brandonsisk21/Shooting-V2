@@ -6,14 +6,15 @@ namespace ArenaShooter.Gameplay
     /// <summary>Assembles a bot: same body, motor, health and weapons as the player, plus a <see cref="BotController"/>.</summary>
     public static class BotFactory
     {
-        public static readonly string[] Names = { "Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf" };
+        /// <summary>Goofy Space Grunt call signs (GDD 5.1).</summary>
+        public static readonly string[] Names = { "Pvt. Pickles", "Sgt. Noodle", "Cpl. Bonk", "Pvt. Zorp", "Lt. Wobbles", "Sgt. Muffin", "Pvt. Gary" };
 
         public static readonly Color[] Colors =
         {
             new Color(0.9f, 0.25f, 0.2f),  // red
             new Color(0.25f, 0.45f, 0.95f), // blue
             new Color(0.95f, 0.8f, 0.15f),  // yellow
-            new Color(0.65f, 0.3f, 0.9f),   // purple
+            new Color(0.55f, 0.95f, 0.3f),  // lime (purple would blend into the lilac ground)
             new Color(0.15f, 0.85f, 0.85f), // cyan
             new Color(0.98f, 0.55f, 0.1f),  // orange
             new Color(0.95f, 0.4f, 0.7f),   // pink
@@ -64,7 +65,7 @@ namespace ArenaShooter.Gameplay
             var weapons = root.AddComponent<WeaponHolder>();
             weapons.aim = head;
             weapons.audioSource = audio;
-            weapons.worldMuzzle = CombatantBody.Build(combatant, head, color, visible: true);
+            weapons.thirdPersonGunMount = CombatantBody.Build(combatant, head, color, visible: true);
 
             var bot = root.AddComponent<BotController>();
             bot.head = head;

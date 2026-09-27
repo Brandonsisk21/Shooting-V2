@@ -77,7 +77,7 @@ namespace ArenaShooter.Gameplay
 
         public void ShowMainMenu()
         {
-            var background = new MatchSetup { map = MapChoice.Overlook, botCount = menuBackgroundBots, timeLimitMinutes = 0 };
+            var background = new MatchSetup { map = MapChoice.CrashSite, botCount = menuBackgroundBots, timeLimitMinutes = 0 };
             StartCoroutine(SwitchWorld(background, withPlayer: false, () =>
             {
                 State = FlowState.MainMenu;
@@ -219,7 +219,7 @@ namespace ArenaShooter.Gameplay
 
             var combatant = root.AddComponent<Combatant>();
             combatant.displayName = "You";
-            combatant.color = new Color(0.3f, 0.9f, 0.45f);
+            combatant.color = new Color(0.96f, 0.96f, 0.98f); // white: green/lime is taken by a bot
             combatant.isPlayer = true;
             combatant.Eyes = pivot;
             CombatantBody.Build(combatant, pivot, combatant.color, visible: false);

@@ -37,7 +37,6 @@ namespace ArenaShooter.Gameplay
         private Health _health;
         private WeaponHolder _weapons;
         private PlayerMotor _motor;
-        private Renderer[] _renderers = Array.Empty<Renderer>();
         private Collider[] _hitboxes = Array.Empty<Collider>();
 
         private void Awake()
@@ -50,7 +49,6 @@ namespace ArenaShooter.Gameplay
 
         private void Start()
         {
-            _renderers = GetComponentsInChildren<Renderer>(true);
             var hitboxes = GetComponentsInChildren<Hitbox>(true);
             _hitboxes = new Collider[hitboxes.Length];
             for (int i = 0; i < hitboxes.Length; i++) _hitboxes[i] = hitboxes[i].GetComponent<Collider>();
@@ -69,8 +67,9 @@ namespace ArenaShooter.Gameplay
         /// <summary>Dead combatants vanish: no body, no hitboxes, no collision.</summary>
         private void SetPresent(bool present)
         {
-            foreach (var r in _renderers)
-                if (r != null && !IsFirstPersonOnly(r)) r.enabled = present;
+            // Looked up each time: held-weapon models are rebuilt on weapon changes and death.
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+                if (!IsFirstPersonOnly(r)) r.enabled = present;
             foreach (var c in _hitboxes)
                 if (c != null) c.enabled = present;
             Motor.SetCollision(present);

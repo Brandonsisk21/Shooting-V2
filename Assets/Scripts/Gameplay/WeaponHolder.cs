@@ -14,8 +14,10 @@ namespace ArenaShooter.Gameplay
         public Transform aim;
         [Tooltip("Player only: the camera the first-person view model hangs from.")]
         public Camera viewModelCamera;
-        [Tooltip("Where tracers start when there's no view model (bots' gun muzzle).")]
+        [Tooltip("Where bolts start when there's no view model (bots' gun muzzle). Set automatically when thirdPersonGunMount is used.")]
         public Transform worldMuzzle;
+        [Tooltip("Bots: the hand/head point the held weapon's model attaches to.")]
+        public Transform thirdPersonGunMount;
         public AudioSource audioSource;
         public WeaponStats spawnWeapon = WeaponStats.Rifle();
         public float switchTime = 0.4f;
@@ -214,15 +216,15 @@ namespace ArenaShooter.Gameplay
                 }
                 else if (target == null)
                 {
-                    ShotEffects.Impact(hit.point, hit.normal);
+                    ShotEffects.Impact(hit.point, hit.normal, stats.id == "sniper" ? WeaponModels.ZapGlow : WeaponModels.PewGlow);
                 }
             }
 
             Vector3 from = _muzzle != null && !IsZoomed ? _muzzle.position
                 : worldMuzzle != null ? worldMuzzle.position
                 : ray.origin + ray.direction * 0.3f + Vector3.down * 0.1f;
-            bool sniper = stats.id == "sniper";
-            ShotEffects.Tracer(from, end, sniper ? new Color(0.6f, 0.9f, 1f, 0.9f) : new Color(1f, 0.85f, 0.4f, 0.8f), sniper ? 0.05f : 0.02f, sniper ? 0.25f : 0.06f);
+            if (stats.id == "sniper") ShotEffects.ZapBeam(from, end, WeaponModels.ZapGlow);
+            else ShotEffects.PewBolt(from, end, WeaponModels.PewGlow);
             PlayOneShot(ProceduralAudio.Gunshot(stats.id));
             _muzzleFlashUntil = Time.time + 0.05f;
             Fired?.Invoke(stats);
@@ -289,33 +291,29 @@ namespace ArenaShooter.Gameplay
             _viewModel = null;
             _muzzle = null;
             _muzzleFlash = null;
-            if (weapon == null || viewModelCamera == null) return;
+            if (weapon == null) return;
 
-            bool sniper = weapon.Stats.id == "sniper";
-            float length = sniper ? 0.9f : 0.6f;
-            var root = new GameObject("ViewModel_" + weapon.Stats.id).transform;
-            root.SetParent(viewModelCamera.transform, false);
-            root.localPosition = new Vector3(0.22f, -0.2f, 0.35f);
-
-            Color bodyColor = sniper ? new Color(0.2f, 0.3f, 0.25f) : new Color(0.25f, 0.3f, 0.4f);
-            GrayBox.Visual(PrimitiveType.Cube, "Body", root, new Vector3(0f, 0f, length * 0.5f), new Vector3(0.07f, 0.1f, length), bodyColor);
-            GrayBox.Visual(PrimitiveType.Cube, "Grip", root, new Vector3(0f, -0.09f, 0.08f), new Vector3(0.05f, 0.12f, 0.06f), bodyColor * 0.7f);
-            if (sniper)
+            if (viewModelCamera == null)
             {
-                var scope = GrayBox.Visual(PrimitiveType.Cylinder, "Scope", root, new Vector3(0f, 0.08f, 0.35f), new Vector3(0.05f, 0.14f, 0.05f), new Color(0.1f, 0.1f, 0.1f));
-                scope.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                // Third person (bots): swap the gun in their hands to match the held weapon.
+                if (thirdPersonGunMount != null)
+                {
+                    _viewModel = new GameObject("HeldWeapon").transform;
+                    _viewModel.SetParent(thirdPersonGunMount, false);
+                    worldMuzzle = WeaponModels.Build(weapon.Stats.id, _viewModel);
+                }
+                return;
             }
 
-            _muzzle = new GameObject("Muzzle").transform;
-            _muzzle.SetParent(root, false);
-            _muzzle.localPosition = new Vector3(0f, 0.01f, length + 0.02f);
+            var root = new GameObject("ViewModel_" + weapon.Stats.id).transform;
+            root.SetParent(viewModelCamera.transform, false);
+            root.localPosition = new Vector3(0.2f, -0.19f, 0.3f);
+            _muzzle = WeaponModels.Build(weapon.Stats.id, root);
 
-            _muzzleFlash = GrayBox.Visual(PrimitiveType.Sphere, "MuzzleFlash", _muzzle, Vector3.zero, Vector3.one * 0.09f, new Color(1f, 0.8f, 0.3f));
-            _muzzleFlash.GetComponent<Renderer>().sharedMaterial = GrayBox.VertexColorUnlit;
+            bool sniper = weapon.Stats.id == "sniper";
+            _muzzleFlash = GrayBox.GlowVisual(PrimitiveType.Sphere, "MuzzleFlash", _muzzle, Vector3.zero, Vector3.one * 0.12f,
+                sniper ? WeaponModels.ZapGlow : WeaponModels.PewGlow);
             _muzzleFlash.SetActive(false);
-
-            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
-                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _viewModel = root;
         }
 

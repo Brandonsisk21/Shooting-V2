@@ -4,7 +4,7 @@ namespace ArenaShooter.Core
 {
     public enum MapChoice
     {
-        Overlook,
+        CrashSite,
         TestRange,
     }
 
@@ -19,7 +19,7 @@ namespace ArenaShooter.Core
     [Serializable]
     public class MatchSetup
     {
-        public MapChoice map = MapChoice.Overlook;
+        public MapChoice map = MapChoice.CrashSite;
         /// <summary>Bots besides you. 5 + you = 6 players, inside the GDD's 4–8.</summary>
         public int botCount = 5;
         public Difficulty difficulty = Difficulty.Normal;

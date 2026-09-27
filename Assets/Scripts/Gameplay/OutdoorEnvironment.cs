@@ -4,31 +4,34 @@ using UnityEngine.Rendering;
 namespace ArenaShooter.Gameplay
 {
     /// <summary>
-    /// Bright daytime outdoor look (GDD 5): procedural sky, warm sun, soft tri-color ambient and
-    /// light distance fog. Stylized rather than realistic, and tuned so enemies read clearly.
+    /// Alien-planet daytime look (GDD 5.1): lavender procedural sky, warm pink sun, soft tri-color
+    /// ambient and light distance haze. Stylized, and tuned so the colorful grunts read clearly.
     /// </summary>
     public static class OutdoorEnvironment
     {
-        public static readonly Color FogColor = new Color(0.74f, 0.84f, 0.95f);
+        public static readonly Color FogColor = new Color(0.8f, 0.74f, 0.94f);
 
         public static void Apply()
         {
-            var skyShader = Shader.Find("Skybox/Procedural");
+            // Template from Resources so the procedural sky shader ships in builds.
+            var template = Resources.Load<Material>("ArenaMaterials/Sky");
+            var skyShader = template != null ? template.shader : Shader.Find("Skybox/Procedural");
             if (skyShader != null)
             {
-                var sky = new Material(skyShader) { name = "OutdoorSky" };
-                sky.SetFloat("_SunSize", 0.05f);
-                sky.SetFloat("_AtmosphereThickness", 0.75f);
-                sky.SetColor("_SkyTint", new Color(0.4f, 0.6f, 1f));
-                sky.SetColor("_GroundColor", new Color(0.5f, 0.55f, 0.45f));
+                var sky = template != null ? new Material(template) : new Material(skyShader);
+                sky.name = "OutdoorSky";
+                sky.SetFloat("_SunSize", 0.06f);
+                sky.SetFloat("_AtmosphereThickness", 1.25f);
+                sky.SetColor("_SkyTint", new Color(0.75f, 0.5f, 0.95f));
+                sky.SetColor("_GroundColor", new Color(0.4f, 0.32f, 0.5f));
                 sky.SetFloat("_Exposure", 1.3f);
                 RenderSettings.skybox = sky;
             }
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.62f, 0.72f, 0.92f);
-            RenderSettings.ambientEquatorColor = new Color(0.58f, 0.62f, 0.56f);
-            RenderSettings.ambientGroundColor = new Color(0.36f, 0.34f, 0.28f);
+            RenderSettings.ambientSkyColor = new Color(0.7f, 0.66f, 0.95f);
+            RenderSettings.ambientEquatorColor = new Color(0.66f, 0.6f, 0.74f);
+            RenderSettings.ambientGroundColor = new Color(0.36f, 0.3f, 0.42f);
 
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
@@ -37,7 +40,7 @@ namespace ArenaShooter.Gameplay
             RenderSettings.fogEndDistance = 260f;
 
             Light sun = FindOrCreateSun();
-            sun.color = new Color(1f, 0.95f, 0.84f);
+            sun.color = new Color(1f, 0.9f, 0.86f);
             sun.intensity = 1.25f;
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.7f;

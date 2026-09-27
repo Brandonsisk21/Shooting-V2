@@ -59,20 +59,17 @@ namespace ArenaShooter.Gameplay
             if (_visual != null) Destroy(_visual.gameObject);
             if (Weapon == null) return;
 
-            bool sniper = Weapon.Stats.id == "sniper";
-            float length = sniper ? 1.3f : 0.8f;
-            Color color = sniper ? new Color(0.95f, 0.35f, 0.2f) : new Color(0.3f, 0.55f, 0.95f);
-
             _visual = new GameObject("Visual").transform;
             _visual.SetParent(transform, false);
             _visualBase = Vector3.zero;
-            GrayBox.Visual(PrimitiveType.Cube, "Body", _visual, Vector3.zero, new Vector3(0.12f, 0.16f, length), color);
-            GrayBox.Visual(PrimitiveType.Cube, "Grip", _visual, new Vector3(0f, -0.14f, -length * 0.25f), new Vector3(0.08f, 0.18f, 0.1f), color * 0.7f);
-            if (sniper)
-            {
-                var scope = GrayBox.Visual(PrimitiveType.Cylinder, "Scope", _visual, new Vector3(0f, 0.14f, 0f), new Vector3(0.08f, 0.2f, 0.08f), new Color(0.1f, 0.1f, 0.1f));
-                scope.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            }
+            var model = new GameObject("Model").transform;
+            model.SetParent(_visual, false);
+            float length = Weapon.Stats.id == "sniper" ? 1.3f : 0.7f;
+            model.localPosition = new Vector3(0f, 0f, -length * 0.8f); // center the gun on the pickup
+            WeaponModels.Build(Weapon.Stats.id, model, 1.6f);
+            // Soft glow disc underneath so dropped weapons are easy to spot.
+            GrayBox.GlowVisual(PrimitiveType.Cylinder, "Halo", _visual, new Vector3(0f, -0.45f, 0f), new Vector3(1.2f, 0.01f, 1.2f),
+                Weapon.Stats.id == "sniper" ? new Color(0.45f, 0.95f, 1f, 0.5f) : new Color(1f, 0.55f, 0.25f, 0.5f));
         }
     }
 }

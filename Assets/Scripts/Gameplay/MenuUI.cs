@@ -120,7 +120,7 @@ namespace ArenaShooter.Gameplay
 
         private Page MainPage()
         {
-            var p = new Page { Title = "ARENA SHOOTER" };
+            var p = new Page { Title = "SPACE GRUNTS" };
             p.Items.Add(Button("Play vs Bots", "Free-for-All against bots.", () => Push(SetupPage())));
             p.Items.Add(Button("Multiplayer", "Play with friends online.", () => Push(MultiplayerPage())));
             p.Items.Add(Button("Settings", "Sensitivity, controller, field of view, volume.", () => Push(SettingsPage())));
@@ -133,8 +133,8 @@ namespace ArenaShooter.Gameplay
         {
             _setup = GameSettings.LastSetup.Clone();
             var p = new Page { Title = "PLAY VS BOTS" };
-            p.Items.Add(Choice("Map", new[] { "Overlook", "Test Range" }, () => (int)_setup.map, v => _setup.map = (MapChoice)v,
-                "Overlook: the outdoor arena. Test Range: target dummies, no bots."));
+            p.Items.Add(Choice("Map", new[] { "Crash Site", "Test Range" }, () => (int)_setup.map, v => _setup.map = (MapChoice)v,
+                "Crash Site: two dropships, one alien planet. Test Range: target dummies, no bots."));
             var bots = new string[MatchSetup.MaxBots + 1];
             for (int i = 0; i < bots.Length; i++) bots[i] = i.ToString();
             var botItem = Choice("Bots", bots, () => _setup.botCount, v => _setup.botCount = v, "How many bots join you (you + 5 = 6 players).");
@@ -197,7 +197,7 @@ namespace ArenaShooter.Gameplay
                     "Move / look         WASD / mouse            Left stick / right stick\n" +
                     "Jump                Space                   A\n" +
                     "Fire                Left mouse              RT\n" +
-                    "Scope (sniper)      Right mouse             LT or click right stick\n" +
+                    "Scope (Long Zapper) Right mouse             LT or click right stick\n" +
                     "Reload              R                       X\n" +
                     "Pick up weapon      E                       Hold X\n" +
                     "Switch weapon       Q / wheel / 1 / 2       Y\n" +
@@ -305,7 +305,7 @@ namespace ArenaShooter.Gameplay
             y += 64f;
             if (_stack.Count == 1 && !pause)
             {
-                HudSkin.Label(new Rect(x + 4f, y, 800f, 24f), "working title  ·  gray-box build", _subtitle, HudSkin.Accent, TextAnchor.MiddleLeft);
+                HudSkin.Label(new Rect(x + 4f, y, 800f, 24f), "goofy space marines  ·  prototype build", _subtitle, HudSkin.Accent, TextAnchor.MiddleLeft);
             }
             y += 40f;
 

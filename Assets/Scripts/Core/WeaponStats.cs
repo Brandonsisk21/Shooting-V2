@@ -35,7 +35,7 @@ namespace ArenaShooter.Core
         public static WeaponStats Rifle() => new WeaponStats
         {
             id = "rifle",
-            displayName = "Rifle",
+            displayName = "Pew Rifle",
             headDamage = 40f,
             bodyDamage = 25f,
             fireInterval = 0.2f,
@@ -49,7 +49,7 @@ namespace ArenaShooter.Core
         public static WeaponStats Sniper() => new WeaponStats
         {
             id = "sniper",
-            displayName = "Sniper",
+            displayName = "Long Zapper",
             headDamage = 100f,
             bodyDamage = 50f,
             fireInterval = 0.8f,
