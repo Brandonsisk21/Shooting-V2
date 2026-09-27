@@ -14,8 +14,19 @@ namespace ArenaShooter.Gameplay
         public WeaponStats weapon = WeaponStats.Sniper();
         public float hoverHeight = 1f;
 
-        public float TimeUntilNextSpawn => _spawner?.TimeUntilNext ?? 0f;
-        public bool HasWeaponOnPad => _current != null;
+        public float TimeUntilNextSpawn => _mirror ? _mirrorTimeLeft : _spawner?.TimeUntilNext ?? 0f;
+        public bool HasWeaponOnPad => _mirror ? _mirrorHasWeapon : _current != null;
+
+        private bool _mirror, _mirrorHasWeapon;
+        private float _mirrorTimeLeft;
+
+        /// <summary>Online clients: the host runs the pad; we only display its state.</summary>
+        public void SetMirror(bool hasWeapon, float timeLeft)
+        {
+            _mirror = true;
+            _mirrorHasWeapon = hasWeapon;
+            _mirrorTimeLeft = timeLeft;
+        }
 
         private FixedIntervalSpawner _spawner;
         private WeaponPickup _current;
@@ -35,6 +46,7 @@ namespace ArenaShooter.Gameplay
 
         private void Update()
         {
+            if (_mirror) return;
             if (_spawner.Tick(Time.deltaTime)) Spawn();
         }
 

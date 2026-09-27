@@ -3,7 +3,8 @@
     "rootNamespace": "ArenaShooter.Gameplay",
     "references": [
         "ArenaShooter.Core",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "com.rlabrecque.steamworks.net"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

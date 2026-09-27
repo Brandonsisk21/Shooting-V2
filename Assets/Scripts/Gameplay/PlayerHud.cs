@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using ArenaShooter.Core;
+using ArenaShooter.Gameplay.Net;
 using UnityEngine;
 
 namespace ArenaShooter.Gameplay
@@ -65,9 +66,24 @@ namespace ArenaShooter.Gameplay
             _lastHealth = health.Current;
         }
 
-        private void OnEnable() => GameSettings.Changed += OnSettingsChanged;
+        private void OnEnable()
+        {
+            GameSettings.Changed += OnSettingsChanged;
+            NetSession.Notice += OnNetNotice;
+        }
 
-        private void OnDisable() => GameSettings.Changed -= OnSettingsChanged;
+        private void OnDisable()
+        {
+            GameSettings.Changed -= OnSettingsChanged;
+            NetSession.Notice -= OnNetNotice;
+        }
+
+        private void OnNetNotice(string text)
+        {
+            _notice = text;
+            _noticeColor = HudSkin.Accent;
+            _noticeTime = Time.time;
+        }
 
         private void OnSettingsChanged() => _showHelp = GameSettings.ShowControlsHint;
 
@@ -147,6 +163,7 @@ namespace ArenaShooter.Gameplay
                 DrawHitMarker(center);
                 DrawDamageNumbers();
                 DrawNotice(w, h);
+                DrawAimName(center);
                 DrawStatusPanel(h, gamepad);
                 DrawPickupPrompt(w, h, gamepad);
             }
@@ -154,6 +171,7 @@ namespace ArenaShooter.Gameplay
             DrawKillFeed(w, match);
             DrawScoreWidget(w, h, match);
             DrawSniperTimer(w);
+            DrawOnlineBadge(w);
 
             bool matchOver = match != null && match.IsOver;
             if (matchOver) DrawResults(w, h, match);
@@ -476,6 +494,25 @@ namespace ArenaShooter.Gameplay
             HudSkin.Fill(bar, new Color(1f, 1f, 1f, 0.12f));
             HudSkin.Fill(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01((float)score / limit), bar.height), color);
             HudSkin.Label(new Rect(r.xMax - 30f, r.y, 30f, r.height), score.ToString(), _label, HudSkin.Text, TextAnchor.MiddleRight);
+        }
+
+        /// <summary>Halo-style: the name of whoever is under your crosshair.</summary>
+        private void DrawAimName(Vector2 c)
+        {
+            var target = weapons.AimTarget;
+            if (target == null || weapons.IsZoomed) return;
+            HudSkin.Label(new Rect(c.x - 150f, c.y + 22f, 300f, 22f), target.displayName, _small, target.color, TextAnchor.MiddleCenter);
+        }
+
+        private void DrawOnlineBadge(float w)
+        {
+            if (!NetSession.IsOnline) return;
+            var session = NetSession.Current;
+            string text = (session.Role == NetRole.Host ? "HOSTING" : "ONLINE") + $"  ·  {session.PlayerCount} PLAYER" + (session.PlayerCount == 1 ? "" : "S");
+            var size = _small.CalcSize(new GUIContent(text));
+            var r = new Rect((w - size.x) / 2f - 12f, 40f, size.x + 24f, 22f);
+            HudSkin.RoundedRect(r, HudSkin.Panel);
+            HudSkin.Label(r, text, _small, HudSkin.Accent, TextAnchor.MiddleCenter, shadow: false);
         }
 
         private void DrawSniperTimer(float w)

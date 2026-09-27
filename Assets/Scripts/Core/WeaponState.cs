@@ -70,6 +70,13 @@ namespace ArenaShooter.Core
             }
         }
 
+        /// <summary>Overwrites ammo counts (online: mirroring a remote player's weapon).</summary>
+        public void SetAmmo(int magazine, int reserve)
+        {
+            Magazine = Clamp(magazine, 0, Stats.magazineSize);
+            Reserve = Stats.HasUnlimitedReserve ? 0 : Clamp(reserve, 0, Stats.maxReserve);
+        }
+
         /// <summary>Adds spare rounds up to the reserve cap. Returns how many were accepted.</summary>
         public int AddReserve(int amount)
         {

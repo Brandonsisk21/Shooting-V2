@@ -104,6 +104,23 @@ namespace ArenaShooter.Core.Tests
         }
 
         [Test]
+        public void MirrorCopiesHostScoresAndResult()
+        {
+            var score = new MatchScore(25);
+            score.Register(1, "Host");
+            score.Register(2, "Friend");
+            score.Mirror(2, kills: 25, deaths: 3, suicides: 0);
+            score.MirrorResult(over: true, draw: false, winnerId: 2);
+            Assert.AreEqual(25, score.Get(2).Score);
+            Assert.AreEqual(2, score.Winner.Id);
+
+            score.MirrorResult(over: false, draw: false, winnerId: -1);
+            Assert.IsFalse(score.IsOver);
+            score.Unregister(2);
+            Assert.IsNull(score.Get(2));
+        }
+
+        [Test]
         public void ResetClearsScores()
         {
             var score = new MatchScore(1);

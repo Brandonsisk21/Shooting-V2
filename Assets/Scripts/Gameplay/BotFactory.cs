@@ -31,44 +31,11 @@ namespace ArenaShooter.Gameplay
         {
             string name = Names[index % Names.Length];
             Color color = Colors[index % Colors.Length];
+            var combatant = CombatantFactory.CreateBody(name, color, parent, networkDriven: false);
+            combatant.gameObject.name = "Bot_" + name;
 
-            var root = new GameObject("Bot_" + name);
-            root.transform.SetParent(parent, false);
-
-            var controller = root.AddComponent<CharacterController>();
-            controller.height = 1.8f;
-            controller.radius = 0.4f;
-            controller.center = new Vector3(0f, 0.9f, 0f);
-            controller.stepOffset = 0.4f;
-            controller.slopeLimit = 45f;
-            controller.skinWidth = 0.05f;
-
-            var head = new GameObject("Head").transform;
-            head.SetParent(root.transform, false);
-            head.localPosition = new Vector3(0f, 1.6f, 0f);
-
-            root.AddComponent<PlayerMotor>();
-            root.AddComponent<Health>();
-
-            var audio = root.AddComponent<AudioSource>();
-            audio.playOnAwake = false;
-            audio.spatialBlend = 1f;
-            audio.rolloffMode = AudioRolloffMode.Linear;
-            audio.minDistance = 4f;
-            audio.maxDistance = 90f;
-
-            var combatant = root.AddComponent<Combatant>();
-            combatant.displayName = name;
-            combatant.color = color;
-            combatant.Eyes = head;
-
-            var weapons = root.AddComponent<WeaponHolder>();
-            weapons.aim = head;
-            weapons.audioSource = audio;
-            weapons.thirdPersonGunMount = CombatantBody.Build(combatant, head, color, visible: true);
-
-            var bot = root.AddComponent<BotController>();
-            bot.head = head;
+            var bot = combatant.gameObject.AddComponent<BotController>();
+            bot.head = combatant.Eyes;
             bot.skill = SkillFor(difficulty);
             bot.roamArea = roamArea;
             return combatant;

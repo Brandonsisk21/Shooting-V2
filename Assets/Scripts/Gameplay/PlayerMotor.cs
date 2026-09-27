@@ -72,6 +72,9 @@ namespace ArenaShooter.Gameplay
             }
         }
 
+        /// <summary>For bodies moved by the network rather than by Move(): report their velocity (animation).</summary>
+        public void SetExternalVelocity(Vector3 velocity) => _velocity = velocity;
+
         /// <summary>Turns the body's collision on/off (off while dead so corpses don't block anyone).</summary>
         public void SetCollision(bool enabled)
         {

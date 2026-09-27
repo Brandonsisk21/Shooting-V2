@@ -201,7 +201,7 @@ Status: everything below is implemented; the owner has played the first slices, 
 
 ---
 
-## 9.1 Online multiplayer plan (Phase 2, PROPOSAL)
+## 9.1 Online multiplayer (Phase 2, first version DONE: Steam invites)
 Goal: host a match from the menu, send a friend a short **join code**, play together (plus bots) over the internet with no port forwarding.
 
 - **Recommended stack:** Unity **Netcode for GameObjects** (host/client: the host's game runs the match, the bots and the rules) + Unity Gaming Services **Relay** (connects players through Unity's servers using join codes) + **Lobby** (optional: browse or quick-join). Free tier is fine for playing with friends. Needs a free Unity Cloud project linked to this Unity project (the owner has to do that step).
@@ -213,7 +213,14 @@ Goal: host a match from the menu, send a friend a short **join code**, play toge
 - **Design choice:** gameplay networking (Netcode for GameObjects) is the same either way; only the *transport* differs (Unity Transport + Relay vs. a Steam transport). Build on NGO so either can be used.
 - **Work involved:** sync player movement (with client-side prediction so it feels responsive), host-authoritative hits/damage/health, weapons, pickups, the sniper pad, score and kill feed; bots run on the host; menu flow for Host / Join-with-code / lobby.
 - Both players must run the **same build**.
-- **[OPEN QUESTION]** Which transport first: Unity Relay join codes, or Steam invites via test app ID 480? (Can support both.)
+- **DECIDED:** Steam invites first, using test app ID 480 (owner's choice). Unity Relay join codes can be added later as a second transport.
+- **How it works (implemented, custom lightweight netcode rather than NGO, because the whole game is built at runtime without prefabs):**
+  - **Lobby:** friends-only Steam lobby (max 8), tagged `game=spacegrunts` + protocol version (app 480 is shared by many games). Invite via the Steam overlay or an in-game friend list; accepting a Steam invite (or `+connect_lobby`) joins automatically; "Join a Friend" lists friends currently hosting.
+  - **Transport:** Steam Networking Sockets P2P through Valve's relays (no port forwarding); reliable for events, unreliable for snapshots/movement.
+  - **Authority:** the **host** runs the real match (bots, health, damage, pickups, sniper pad, score, respawns) exactly as offline and streams **snapshots at 20 Hz**. Each **client** moves its own grunt locally (sent at 30 Hz), hit-scans locally and **reports** shots ("favor the shooter"; the host checks the weapon, fire rate, range and that both are alive), and **requests** pickups (the host decides). Other grunts are shown **interpolated 100 ms behind** for smooth motion.
+  - Joining mid-match works; each joining player replaces a bot. Host leaving ends the game for everyone (clients return to the menu with a message).
+- **Known limits (first version):** friends-only trust model (no cheat protection beyond sanity checks); no host migration; no lag compensation for bots' shots at clients; online matches can't be paused.
+- **Needs a real two-player playtest** (can't be tested in the cloud dev environment).
 
 ## 9. Remaining Open Questions
 
@@ -221,7 +228,7 @@ All core Phase 1 decisions are now locked (see summary below). The only thing le
 
 1. Art reference for the *eventual* art pass (not urgent — Phase 1 is gray-box only, this matters once you get to the real art phase).
 2. Sniper "power weapon incoming" callout (optional polish, not required for Phase 1).
-3. Multiplayer transport: Unity Relay join codes vs. Steam invites (9.1).
+3. After the first online playtest: netcode feel (interpolation delay, hit registration), and whether to add Unity Relay join codes too.
 
 ### All decisions locked in for Phase 1:
 - **Engine:** Unity (C#)

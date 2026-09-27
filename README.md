@@ -25,6 +25,7 @@ a center sniper platform, Red (north) and Blue (south) bases with tunnels and ov
 - **HUD:** health + ammo panel bottom-left, kill feed, score, scoreboard, damage-direction arcs,
   red crosshair over enemies.
 - **Controls:** keyboard + mouse or an **Xbox controller**, switchable at any time.
+- **Online:** host a game and invite Steam friends, or join a friend who's hosting (see below).
 - **Menus:** main menu, match setup, settings (saved), controls, pause (Esc / Menu button).
   All usable with a controller.
 - The **Test Range** map (pick it in match setup) has dummies at known distances and jump-test blocks.
@@ -62,18 +63,30 @@ assist (look slows while the crosshair is on an enemy). Tune them on `Player →
 
 ## Sharing the game with a friend
 
-**Right now (they play on their own, vs bots):**
 1. In Unity: **File → Build Profiles** (Unity 6), pick **Windows**, click **Build**, and choose an
-   empty folder like `Builds/Windows`.
-2. Zip that whole folder and send it (Google Drive, Dropbox, Discord...). Your friend unzips it and
-   runs the `.exe`. Windows may show a SmartScreen warning for unknown apps: **More info → Run anyway**.
+   empty folder like `Builds/Windows`. (A `steam_appid.txt` is added next to the `.exe` automatically.)
+2. Zip that whole folder and send it (Google Drive, Dropbox, Discord...). Your friend unzips it.
+   Windows may show a SmartScreen warning for unknown apps: **More info → Run anyway**.
 3. Optional: upload the zip to **itch.io** as a private or password-protected page, so friends
    always get the latest version from one link.
 
-A Mac build has to be made on a Mac.
+Both of you need the **same build** to play together online.
 
-**Playing together online** needs networking, which is the next big step. The plan (host → join
-code → friend joins) is in GDD 9.1.
+## Playing online with a friend (Steam invites)
+
+Online play goes through Steam using Valve's free test app ID **480** ("Spacewar"), so the game
+doesn't need a Steam store page. Steam will show you as "playing Spacewar": that's expected.
+
+1. Both of you: have **Steam running and signed in**, and be Steam friends.
+2. **Host:** Main menu → **Multiplayer → Host Game** → pick settings → **Start Hosting**.
+   Then press **Esc / Menu** in the match → **Invite Friends** (Steam overlay) or **Invite From List**.
+3. **Friend:** start the game first, then either accept the Steam invite (the game joins automatically)
+   or go to **Multiplayer → Join a Friend** and pick the host.
+4. Bots fill the empty slots (up to 8 grunts total); each friend who joins replaces a bot.
+
+Notes: the host's game runs the match (bots, scores), so the host should have the better connection.
+Online matches can't be paused (Esc opens the menu over the live match). **End Game for Everyone**
+(host) or **Leave Game** (friend) is in that menu.
 
 ### Tuning
 
@@ -90,6 +103,9 @@ Defaults are in `MovementSettings.cs` and `WeaponStats.cs`; update the GDD if yo
 Assets/Scripts/Core/       Pure C# game rules (no UnityEngine): health/regen, weapon ammo/fire/reload,
                            2-slot loadout + pickup rules, spawn timer + spawn choice, FFA scoring,
                            bot skill/aim, stick response. Shared by player and bots.
+Assets/Scripts/Core/Net/   Online protocol: message encoding, snapshots, interpolation, clock sync (tested).
+Assets/Scripts/Gameplay/Net/  Steam layer (Steamworks.NET): lobbies/invites, P2P transport, NetSession.
+Packages/com.rlabrecque.steamworks.net/  Steamworks.NET (MIT), vendored so nothing extra to install.
 Assets/Scripts/Gameplay/   Unity components: motor, look, input (keyboard/mouse + gamepad), weapons/hitscan,
                            combatants, bots (BotController), match (MatchManager), HUD, bootstrap,
                            map builders (OutdoorArenaMap, TestRangeMap) and the outdoor look.

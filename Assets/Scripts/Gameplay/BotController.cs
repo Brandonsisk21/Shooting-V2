@@ -226,7 +226,7 @@ namespace ArenaShooter.Gameplay
             return hit.collider.transform.IsChildOf(other.transform);
         }
 
-        private void OnShotHeard(Combatant shooter, Vector3 position)
+        private void OnShotHeard(Combatant shooter, Vector3 position, Vector3 end, string weaponId)
         {
             if (shooter == _self || !_self.IsAlive || _targetVisible) return;
             if ((position - transform.position).sqrMagnitude > hearingRange * hearingRange) return;

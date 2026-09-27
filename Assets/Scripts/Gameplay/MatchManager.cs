@@ -42,13 +42,23 @@ namespace ArenaShooter.Gameplay
         public MatchScore Score { get; private set; }
         public IReadOnlyList<KillEvent> KillFeed => _feed;
         public bool IsOver => Score.IsOver;
-        public float RestartCountdown => IsOver ? Mathf.Max(0f, _restartAt - Time.time) : 0f;
-        public bool HasTimeLimit => timeLimit > 0f;
+        public float RestartCountdown => IsMirror ? _mirrorRestartIn : IsOver ? Mathf.Max(0f, _restartAt - Time.time) : 0f;
+        public bool HasTimeLimit => IsMirror ? _mirrorHasTimeLimit : timeLimit > 0f;
         /// <summary>Seconds left on the match clock (frozen once the match is over).</summary>
-        public float TimeRemaining => HasTimeLimit ? Mathf.Max(0f, timeLimit - ((IsOver ? _endedAt : Time.time) - _startedAt)) : 0f;
+        public float TimeRemaining => IsMirror ? _mirrorTimeRemaining
+            : HasTimeLimit ? Mathf.Max(0f, timeLimit - ((IsOver ? _endedAt : Time.time) - _startedAt)) : 0f;
         public SniperSpawnPad SniperPad { get; set; }
+        public IReadOnlyList<Combatant> Combatants => _combatants;
+
+        /// <summary>
+        /// Online client: this manager only mirrors the host's match (scores, clock, feed,
+        /// respawn timers) for the HUD; it never kills, spawns or scores anything itself.
+        /// </summary>
+        public bool IsMirror { get; private set; }
 
         public event Action<KillEvent> Killed;
+        /// <summary>A new match started (scores reset, everyone respawned).</summary>
+        public event Action MatchBegan;
 
         private readonly List<SpawnPoint> _spawns = new List<SpawnPoint>();
         private readonly List<Combatant> _combatants = new List<Combatant>();
@@ -58,6 +68,9 @@ namespace ArenaShooter.Gameplay
         private float _restartAt;
         private float _startedAt;
         private float _endedAt;
+        private bool _mirrorHasTimeLimit;
+        private float _mirrorTimeRemaining, _mirrorRestartIn;
+        private readonly Dictionary<int, float> _mirrorRespawn = new Dictionary<int, float>();
 
         private void Awake()
         {
@@ -87,7 +100,59 @@ namespace ArenaShooter.Gameplay
         {
             _combatants.Add(combatant);
             Score.Register(combatant.Id, combatant.displayName);
-            combatant.Health.Died += (_, source) => OnDied(combatant, source);
+            if (!IsMirror) combatant.Health.Died += (_, source) => OnDied(combatant, source);
+        }
+
+        /// <summary>Host: someone joined mid-match. Adds them and spawns them right away.</summary>
+        public void AddLateCombatant(Combatant combatant)
+        {
+            AddCombatant(combatant);
+            Respawn(combatant);
+        }
+
+        /// <summary>Someone left (or a bot made room for a player).</summary>
+        public void RemoveCombatant(Combatant combatant)
+        {
+            _combatants.Remove(combatant);
+            _respawnAt.Remove(combatant);
+            Score.Unregister(combatant.Id);
+        }
+
+        // ------------------------------------------------------------ online client mirror
+
+        public void InitializeMirror(int limit)
+        {
+            IsMirror = true;
+            Initialize(limit, 0f);
+        }
+
+        /// <summary>Online client: copy the host's match state from a snapshot.</summary>
+        public void ApplySnapshot(ArenaShooter.Core.Net.SnapshotMsg snap)
+        {
+            _mirrorHasTimeLimit = snap.HasTimeLimit;
+            _mirrorTimeRemaining = snap.TimeRemaining;
+            _mirrorRestartIn = snap.RestartIn;
+            foreach (var s in snap.Scores) Score.Mirror(s.Id, s.Kills, s.Deaths, s.Suicides);
+            Score.MirrorResult(snap.IsOver, snap.IsDraw, snap.WinnerId);
+            _mirrorRespawn.Clear();
+            foreach (var c in snap.Combatants)
+                if (!c.Alive) _mirrorRespawn[c.Id] = c.RespawnIn;
+        }
+
+        /// <summary>Online client: a kill happened on the host.</summary>
+        public void MirrorKill(KillEvent kill)
+        {
+            _feed.Add(kill);
+            if (_feed.Count > 20) _feed.RemoveAt(0);
+            Killed?.Invoke(kill);
+        }
+
+        /// <summary>Online client: the host started a new match.</summary>
+        public void MirrorMatchBegan()
+        {
+            _feed.Clear();
+            Score.Reset();
+            MatchBegan?.Invoke();
         }
 
         /// <summary>Places everyone at spawns. Call after all combatants are added.</summary>
@@ -101,11 +166,15 @@ namespace ArenaShooter.Gameplay
                 Destroy(pickup.gameObject);
             if (SniperPad != null) SniperPad.ResetTimer();
             foreach (var c in _combatants) Respawn(c);
+            MatchBegan?.Invoke();
         }
 
         /// <summary>Seconds until this combatant respawns (0 if alive).</summary>
-        public float RespawnCountdown(Combatant combatant) =>
-            _respawnAt.TryGetValue(combatant, out float at) ? Mathf.Max(0f, at - Time.time) : 0f;
+        public float RespawnCountdown(Combatant combatant)
+        {
+            if (IsMirror) return _mirrorRespawn.TryGetValue(combatant.Id, out float left) ? left : 0f;
+            return _respawnAt.TryGetValue(combatant, out float at) ? Mathf.Max(0f, at - Time.time) : 0f;
+        }
 
         private void OnDied(Combatant victim, DamageSource source)
         {
@@ -132,6 +201,7 @@ namespace ArenaShooter.Gameplay
 
         private void Update()
         {
+            if (IsMirror) return;
             if (IsOver)
             {
                 if (Time.time >= _restartAt) BeginMatch();

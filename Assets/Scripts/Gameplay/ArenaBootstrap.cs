@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using ArenaShooter.Core;
+using ArenaShooter.Gameplay.Net;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -57,12 +58,24 @@ namespace ArenaShooter.Gameplay
             GameSettings.Changed += ApplySettings;
             _menu = gameObject.AddComponent<MenuUI>();
             _menu.flow = this;
+
+            // Steam (optional): invites and online play. Offline play works without it.
+            if (SteamService.EnsureStarted(gameObject))
+            {
+                SteamLobby.RegisterInviteListener();
+                SteamLobby.JoinRequested += JoinLobby;
+            }
             ShowMainMenu();
+
+            // Launched by Steam from a friend's invite ("Join Game")?
+            ulong lobby = SteamLobby.LobbyFromCommandLine();
+            if (lobby != 0 && SteamService.IsReady) JoinLobby(lobby);
         }
 
         private void OnDestroy()
         {
             GameSettings.Changed -= ApplySettings;
+            SteamLobby.JoinRequested -= JoinLobby;
             Time.timeScale = 1f;
             if (Instance == this) Instance = null;
         }
@@ -77,6 +90,7 @@ namespace ArenaShooter.Gameplay
 
         public void ShowMainMenu()
         {
+            if (NetSession.IsOnline) NetSession.Current.Shutdown(null);
             var background = new MatchSetup { map = MapChoice.CrashSite, botCount = menuBackgroundBots, timeLimitMinutes = 0 };
             StartCoroutine(SwitchWorld(background, withPlayer: false, () =>
             {
@@ -95,7 +109,56 @@ namespace ArenaShooter.Gameplay
                 State = FlowState.Playing;
                 _menu.Close();
                 SetCursor(locked: true);
+                if (NetSession.IsHost) NetSession.Current.AttachHost(MatchManager.Current, _player.GetComponent<Combatant>());
             }));
+        }
+
+        // ------------------------------------------------------------ online (Steam)
+
+        /// <summary>Host: open a friends-only Steam lobby, then start the match others can join.</summary>
+        public void StartHosting(MatchSetup setup)
+        {
+            _menu.ShowMessage("Creating your Steam game...");
+            NetSession.Create(this).BeginHosting(setup, (ok, error) =>
+            {
+                if (ok) StartMatch(setup);
+                else _menu.ShowMessage(error);
+            });
+        }
+
+        /// <summary>Join a friend's lobby (from the Join list, a Steam invite, or the command line).</summary>
+        public void JoinLobby(ulong lobbyId)
+        {
+            if (!SteamService.IsReady) return;
+            if (State != FlowState.MainMenu) ShowMainMenu();
+            _menu.ShowMessage("Joining your friend's game...");
+            NetSession.Create(this).BeginJoining(lobbyId, error => _menu.ShowMessage(error));
+        }
+
+        /// <summary>Client: the host welcomed us; build their match locally (no bots: they come from the host).</summary>
+        public void StartClientMatch(MatchSetup setup)
+        {
+            StartCoroutine(SwitchWorld(setup, withPlayer: true, () =>
+            {
+                State = FlowState.Playing;
+                _menu.Close();
+                SetCursor(locked: true);
+                NetSession.Current.AttachClient(MatchManager.Current, _player.GetComponent<Combatant>());
+            }, clientMirror: true));
+        }
+
+        /// <summary>Back to the main menu after an online game ended, with a message why.</summary>
+        public void ReturnToMenuWithMessage(string message)
+        {
+            ShowMainMenu();
+            _menu.ShowMessage(message);
+        }
+
+        /// <summary>Leave the current match (pause menu). Online: leaves the game (host: ends it for everyone).</summary>
+        public void LeaveMatch()
+        {
+            if (NetSession.IsOnline) NetSession.Current.Shutdown(null);
+            ShowMainMenu();
         }
 
         public void Pause()
@@ -103,7 +166,7 @@ namespace ArenaShooter.Gameplay
             if (State != FlowState.Playing) return;
             State = FlowState.Paused;
             _stateChangedFrame = Time.frameCount;
-            Time.timeScale = 0f;
+            if (!NetSession.IsOnline) Time.timeScale = 0f; // online games can't pause: the menu opens over the match
             Gamepad.current?.ResetHaptics();
             _menu.OpenPause();
             SetCursor(locked: false);
@@ -119,9 +182,9 @@ namespace ArenaShooter.Gameplay
             SetCursor(locked: true);
         }
 
-        private IEnumerator SwitchWorld(MatchSetup setup, bool withPlayer, Action done)
+        private IEnumerator SwitchWorld(MatchSetup setup, bool withPlayer, Action done, bool clientMirror = false)
         {
-            if (_switching) yield break;
+            while (_switching) yield return null; // e.g. joining a friend while the menu is still loading
             _switching = true;
             Time.timeScale = 1f;
             _menu.Close();
@@ -133,14 +196,14 @@ namespace ArenaShooter.Gameplay
                 Destroy(pickup.gameObject);
             yield return null; // let Destroy finish so the old map isn't baked into the new nav mesh
 
-            BuildWorld(setup, withPlayer);
+            BuildWorld(setup, withPlayer, clientMirror);
             if (!withPlayer) _menuCamera = MenuCamera.Create();
             ApplySettings();
             _switching = false;
             done();
         }
 
-        private void BuildWorld(MatchSetup setup, bool withPlayer)
+        private void BuildWorld(MatchSetup setup, bool withPlayer, bool clientMirror)
         {
             var root = new GameObject("Map_" + setup.map).transform;
             CurrentMap = setup.map == MapChoice.TestRange ? TestRangeMap.Build(root) : OutdoorArenaMap.Build(root);
@@ -152,9 +215,20 @@ namespace ArenaShooter.Gameplay
             NavMeshBaker.Bake(bakeArea);
 
             var match = root.gameObject.AddComponent<MatchManager>();
-            match.Initialize(setup.scoreLimit, setup.HasTimeLimit ? setup.TimeLimitSeconds : 0f);
             match.SetSpawns(CurrentMap.Spawns);
             match.SniperPad = CurrentMap.SniperPad;
+
+            if (clientMirror)
+            {
+                // Online client: the host runs the match. We show it; our grunt reports to the host.
+                match.InitializeMirror(setup.scoreLimit);
+                if (CurrentMap.SniperPad != null) CurrentMap.SniperPad.SetMirror(false, 0f);
+                _player = BuildPlayer(CurrentMap);
+                _player.GetComponent<WeaponHolder>().remoteAuthority = true;
+                return;
+            }
+
+            match.Initialize(setup.scoreLimit, setup.HasTimeLimit ? setup.TimeLimitSeconds : 0f);
 
             _player = null;
             if (withPlayer)

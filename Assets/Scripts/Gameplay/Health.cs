@@ -42,5 +42,8 @@ namespace ArenaShooter.Gameplay
         }
 
         public void ResetHealth() => Model.Reset();
+
+        /// <summary>Online: snap to the host's value (no events).</summary>
+        public void SetCurrent(float value) => Model.SetCurrent(value);
     }
 }

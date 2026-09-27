@@ -70,6 +70,12 @@ namespace ArenaShooter.Core
             Current = Math.Min(Max, Current + RegenRate * regenTime);
         }
 
+        /// <summary>Overwrites current health (online clients mirroring the host). Doesn't raise events.</summary>
+        public void SetCurrent(float value)
+        {
+            Current = Math.Max(0f, Math.Min(Max, value));
+        }
+
         public void Reset()
         {
             Current = Max;

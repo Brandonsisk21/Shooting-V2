@@ -21,6 +21,8 @@ namespace ArenaShooter.Gameplay
         public bool isPlayer;
 
         public int Id { get; private set; }
+        /// <summary>Steam ID of the human controlling this grunt online (0 for bots / offline).</summary>
+        public ulong NetOwner { get; set; }
         // Looked up lazily so component add order doesn't matter when building at runtime.
         public Health Health => _health != null ? _health : _health = GetComponent<Health>();
         public WeaponHolder Weapons => _weapons != null ? _weapons : _weapons = GetComponent<WeaponHolder>();
@@ -44,6 +46,16 @@ namespace ArenaShooter.Gameplay
             Id = _nextId++;
         }
 
+        /// <summary>Online: use the host's ID for this combatant so everyone agrees on who is who.</summary>
+        public void AssignId(int id) => Id = id;
+
+        public static Combatant Find(int id)
+        {
+            foreach (var c in Registry)
+                if (c.Id == id) return c;
+            return null;
+        }
+
         private void OnEnable() => Registry.Add(this);
         private void OnDisable() => Registry.Remove(this);
 
@@ -65,7 +77,7 @@ namespace ArenaShooter.Gameplay
         }
 
         /// <summary>Dead combatants vanish: no body, no hitboxes, no collision.</summary>
-        private void SetPresent(bool present)
+        public void SetPresent(bool present)
         {
             // Looked up each time: held-weapon models are rebuilt on weapon changes and death.
             foreach (var r in GetComponentsInChildren<Renderer>(true))

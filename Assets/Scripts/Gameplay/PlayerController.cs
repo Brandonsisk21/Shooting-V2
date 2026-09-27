@@ -66,7 +66,7 @@ namespace ArenaShooter.Gameplay
             if (cmd.Pickup) weapons.TryPickup();
             if (cmd.SwitchWeapon) weapons.SwitchNext();
             if (cmd.SwitchToSlot >= 0) weapons.SwitchTo(cmd.SwitchToSlot);
-            if (cmd.DebugSelfDamage) health.TakeDamage(debugSelfDamage);
+            if (cmd.DebugSelfDamage && !weapons.remoteAuthority) health.TakeDamage(debugSelfDamage); // offline/host only
         }
 
         private static bool CursorLocked => Cursor.lockState == CursorLockMode.Locked;

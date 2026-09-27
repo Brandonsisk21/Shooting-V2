@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ArenaShooter.Core;
+using ArenaShooter.Gameplay.Net;
 using UnityEngine;
 
 namespace ArenaShooter.Gameplay
@@ -71,6 +72,19 @@ namespace ArenaShooter.Gameplay
             public readonly List<Item> Items = new List<Item>();
             public int Focus;
             public bool IsPauseRoot;
+            /// <summary>Rebuilds the items every second (friend lists).</summary>
+            public Action<Page> Refresh;
+            public float NextRefresh;
+        }
+
+        private string _message;
+        private float _messageUntil;
+
+        /// <summary>Shows a message at the top of the menu for a few seconds (errors, "Joining...").</summary>
+        public void ShowMessage(string message)
+        {
+            _message = message;
+            _messageUntil = Time.unscaledTime + 8f;
         }
 
         private readonly List<Page> _stack = new List<Page>();
@@ -122,17 +136,17 @@ namespace ArenaShooter.Gameplay
         {
             var p = new Page { Title = "SPACE GRUNTS" };
             p.Items.Add(Button("Play vs Bots", "Free-for-All against bots.", () => Push(SetupPage())));
-            p.Items.Add(Button("Multiplayer", "Play with friends online.", () => Push(MultiplayerPage())));
+            p.Items.Add(Button("Multiplayer", "Play with Steam friends: host a game or join one.", () => Push(MultiplayerPage())));
             p.Items.Add(Button("Settings", "Sensitivity, controller, field of view, volume.", () => Push(SettingsPage())));
             p.Items.Add(Button("Controls", "Keyboard + mouse and Xbox controller layouts.", () => Push(ControlsPage())));
             p.Items.Add(Button("Quit", "Close the game.", Quit));
             return p;
         }
 
-        private Page SetupPage()
+        private Page SetupPage(bool online = false)
         {
             _setup = GameSettings.LastSetup.Clone();
-            var p = new Page { Title = "PLAY VS BOTS" };
+            var p = new Page { Title = online ? "HOST GAME" : "PLAY VS BOTS" };
             p.Items.Add(Choice("Map", new[] { "Crash Site", "Test Range" }, () => (int)_setup.map, v => _setup.map = (MapChoice)v,
                 "Crash Site: two dropships, one alien planet. Test Range: target dummies, no bots."));
             var bots = new string[MatchSetup.MaxBots + 1];
@@ -150,25 +164,82 @@ namespace ArenaShooter.Gameplay
             p.Items.Add(Choice("Time limit", Labels(MatchSetup.TimeLimitChoices, n => n == 0 ? "None" : n + " min"),
                 () => IndexOf(MatchSetup.TimeLimitChoices, _setup.timeLimitMinutes, 1), v => _setup.timeLimitMinutes = MatchSetup.TimeLimitChoices[v],
                 "When time runs out, the leader wins (a tie is a draw)."));
-            p.Items.Add(Button("Start Match", "Drop in!", () => flow.StartMatch(_setup)));
+            if (online)
+                p.Items.Add(Button("Start Hosting", "Starts the match; invite friends from the pause menu (Esc / Menu). Bots fill empty slots.", () => flow.StartHosting(_setup)));
+            else
+                p.Items.Add(Button("Start Match", "Drop in!", () => flow.StartMatch(_setup)));
             p.Items.Add(Button("Back", null, Back));
             return p;
         }
 
         private Page MultiplayerPage()
         {
+            var p = new Page { Title = "MULTIPLAYER" };
+            if (!SteamService.IsReady)
+            {
+                p.Body = SteamService.Status + "\nOnline play uses Steam: open Steam, sign in, then restart the game.";
+                p.Items.Add(Button("Back", null, Back));
+                return p;
+            }
+            p.Body = "Signed in to Steam as " + SteamService.LocalName + ".\nGames are friends-only: host one and invite friends, or join a friend who is hosting.";
+            p.Items.Add(Button("Host Game", "Start a match your Steam friends can join (bots fill the empty slots).", () => Push(SetupPage(online: true))));
+            p.Items.Add(Button("Join a Friend", "See friends who are hosting Space Grunts right now.", () => Push(JoinPage())));
+            p.Items.Add(Button("Back", null, Back));
+            return p;
+        }
+
+        private Page JoinPage()
+        {
             var p = new Page
             {
-                Title = "MULTIPLAYER",
-                Body = "Online play is the next big step.\nHost a game, send your friend a join code, and fight together.",
+                Title = "JOIN A FRIEND",
+                Body = "Friends hosting Space Grunts show up here.\nYou can also accept their Steam invite; the game will join automatically.",
             };
-            var host = Button("Host Game", "Coming soon: host a match and get a join code for your friend.", null);
-            host.Enabled = () => false;
-            var join = Button("Join Game", "Coming soon: enter a friend's join code.", null);
-            join.Enabled = () => false;
-            p.Items.Add(host);
-            p.Items.Add(join);
-            p.Items.Add(Button("Back", null, Back));
+            p.Refresh = page =>
+            {
+                page.Items.Clear();
+                foreach (var friend in SteamLobby.Friends(onlyHosting: true))
+                {
+                    ulong lobby = friend.Lobby;
+                    page.Items.Add(Button("Join " + friend.Name, "Jump into " + friend.Name + "'s game.", () => flow.JoinLobby(lobby)));
+                }
+                if (page.Items.Count == 0)
+                {
+                    var none = Button("No friends hosting right now", "Ask a friend to Host Game, or wait for their invite.", null);
+                    none.Enabled = () => false;
+                    page.Items.Add(none);
+                }
+                page.Items.Add(Button("Back", null, Back));
+            };
+            p.Refresh(p);
+            return p;
+        }
+
+        private Page InvitePage()
+        {
+            var p = new Page { Title = "INVITE FRIENDS", Body = "Online Steam friends. They get a Steam invite; if their game is running it joins automatically." };
+            p.Refresh = page =>
+            {
+                page.Items.Clear();
+                foreach (var friend in SteamLobby.Friends(onlyHosting: false))
+                {
+                    ulong id = friend.Id;
+                    string name = friend.Name;
+                    page.Items.Add(Button("Invite " + name, null, () =>
+                    {
+                        bool sent = NetSession.Current != null && NetSession.Current.Lobby != null && NetSession.Current.Lobby.Invite(id);
+                        ShowMessage(sent ? "Invite sent to " + name + "." : "Couldn't send the invite.");
+                    }));
+                }
+                if (page.Items.Count == 0)
+                {
+                    var none = Button("No friends online", null, null);
+                    none.Enabled = () => false;
+                    page.Items.Add(none);
+                }
+                page.Items.Add(Button("Back", null, Back));
+            };
+            p.Refresh(p);
             return p;
         }
 
@@ -210,11 +281,20 @@ namespace ArenaShooter.Gameplay
 
         private Page PausePage()
         {
-            var p = new Page { Title = "PAUSED", IsPauseRoot = true };
+            bool online = NetSession.IsOnline;
+            bool host = NetSession.IsHost;
+            var p = new Page { Title = online ? "MENU" : "PAUSED", IsPauseRoot = true };
+            if (online) p.Body = (host ? "You're hosting. " : "Online game. ") + "The match keeps going while this menu is open!";
             p.Items.Add(Button("Resume", null, () => flow.Resume()));
+            if (host)
+            {
+                p.Items.Add(Button("Invite Friends", "Opens the Steam overlay invite list (Shift+Tab).", () => NetSession.Current.Lobby?.OpenInviteOverlay()));
+                p.Items.Add(Button("Invite From List", "Pick online friends to invite from here.", () => Push(InvitePage())));
+            }
             p.Items.Add(Button("Settings", null, () => Push(SettingsPage())));
             p.Items.Add(Button("Controls", null, () => Push(ControlsPage())));
-            p.Items.Add(Button("Quit to Main Menu", "Leaves the current match.", () => flow.ShowMainMenu()));
+            p.Items.Add(Button(online ? (host ? "End Game for Everyone" : "Leave Game") : "Quit to Main Menu",
+                host ? "Closes the game for everyone who joined." : "Leaves the current match.", () => flow.LeaveMatch()));
             return p;
         }
 
@@ -269,6 +349,12 @@ namespace ArenaShooter.Gameplay
         {
             var page = Current;
             if (page == null || Time.frameCount == _openedFrame) return;
+            if (page.Refresh != null && Time.unscaledTime >= page.NextRefresh)
+            {
+                page.NextRefresh = Time.unscaledTime + 1f;
+                page.Refresh(page);
+                page.Focus = Mathf.Clamp(page.Focus, 0, Mathf.Max(0, page.Items.Count - 1));
+            }
 
             var cmd = MenuInput.Read();
             if (cmd.Back)
@@ -289,9 +375,10 @@ namespace ArenaShooter.Gameplay
 
         private void OnGUI()
         {
+            EnsureStyles();
+            DrawMessage();
             var page = Current;
             if (page == null) return;
-            EnsureStyles();
             GUI.depth = -10; // above the HUD
 
             float w = Screen.width, h = Screen.height;
@@ -366,6 +453,22 @@ namespace ArenaShooter.Gameplay
             bool gamepad = MenuInput.LastDevice == InputDeviceKind.Gamepad;
             string footer = gamepad ? "A  select      B  back      ◀ ▶  change" : "Enter / click  select      Esc  back      ◀ ▶  change";
             HudSkin.Label(new Rect(x, h - 56f, 700f, 24f), footer, _hint, HudSkin.Dim, TextAnchor.MiddleLeft);
+        }
+
+        private void DrawMessage()
+        {
+            string text = null;
+            if (NetSession.IsClient && flow.State == FlowState.MainMenu) text = NetSession.Current.Status; // joining progress
+            else if (!string.IsNullOrEmpty(_message) && Time.unscaledTime < _messageUntil) text = _message;
+            if (string.IsNullOrEmpty(text)) return;
+
+            GUI.depth = -20;
+            var size = _value.CalcSize(new GUIContent(text));
+            float w = Mathf.Min(Screen.width - 40f, size.x + 48f);
+            var r = new Rect((Screen.width - w) / 2f, 24f, w, 44f);
+            HudSkin.RoundedRect(r, new Color(0.08f, 0.1f, 0.18f, 0.92f));
+            HudSkin.Fill(new Rect(r.x, r.y + 10f, 4f, r.height - 20f), HudSkin.Accent);
+            HudSkin.Label(r, text, _value, Color.white, TextAnchor.MiddleCenter, shadow: false);
         }
 
         private void EnsureStyles()

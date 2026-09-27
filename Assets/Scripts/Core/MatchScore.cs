@@ -95,6 +95,25 @@ namespace ArenaShooter.Core
             return list;
         }
 
+        /// <summary>Online clients: copy one player's score from the host's snapshot.</summary>
+        public void Mirror(int id, int kills, int deaths, int suicides)
+        {
+            var e = Get(id);
+            if (e == null) return;
+            e.Kills = kills;
+            e.Deaths = deaths;
+            e.Suicides = suicides;
+        }
+
+        /// <summary>Online clients: copy the match result from the host.</summary>
+        public void MirrorResult(bool over, bool draw, int winnerId)
+        {
+            Winner = over && !draw ? Get(winnerId) : null;
+            IsDraw = over && draw;
+        }
+
+        public void Unregister(int id) => _entries.Remove(id);
+
         public void Reset()
         {
             Winner = null;

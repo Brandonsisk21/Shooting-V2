@@ -10,6 +10,33 @@ namespace ArenaShooter.Gameplay
         public float lifetime = -1f;
 
         public WeaponState Weapon { get; private set; }
+        /// <summary>Network ID (host-assigned). Online clients use it to ask for this pickup.</summary>
+        public int NetId { get; private set; }
+        /// <summary>A client-side copy of a host pickup: it never despawns on its own.</summary>
+        public bool IsMirror { get; private set; }
+
+        private static int _nextNetId = 1;
+        private static readonly System.Collections.Generic.List<WeaponPickup> Registry = new System.Collections.Generic.List<WeaponPickup>();
+        public static System.Collections.Generic.IReadOnlyList<WeaponPickup> All => Registry;
+
+        public static WeaponPickup Find(int netId)
+        {
+            foreach (var p in Registry)
+                if (p != null && p.NetId == netId) return p;
+            return null;
+        }
+
+        /// <summary>Online clients: show a pickup that exists on the host.</summary>
+        public static WeaponPickup CreateMirror(int netId, WeaponState weapon, Vector3 position)
+        {
+            var pickup = Create(weapon, position, -1f);
+            pickup.NetId = netId;
+            pickup.IsMirror = true;
+            return pickup;
+        }
+
+        private void OnEnable() => Registry.Add(this);
+        private void OnDisable() => Registry.Remove(this);
 
         private Transform _visual;
         private float _spawnTime;
@@ -24,6 +51,7 @@ namespace ArenaShooter.Gameplay
             trigger.radius = 0.6f;
 
             var pickup = go.AddComponent<WeaponPickup>();
+            pickup.NetId = _nextNetId++;
             pickup.lifetime = lifetime;
             pickup.SetWeapon(weapon);
             return pickup;

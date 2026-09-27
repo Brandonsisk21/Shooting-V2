@@ -9,11 +9,16 @@
     <LangVersion>9.0</LangVersion>
     <Nullable>disable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- Steamworks.NET disables itself without a Unity standalone define; this is its manual switch. -->
+    <DefineConstants>$(DefineConstants);STEAMWORKS_WIN</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Assets/Scripts/**/*.cs" />
     <!-- Stand-ins for package APIs (Input System) that aren't on NuGet. -->
     <Compile Include="Stubs/**/*.cs" />
+    <!-- Vendored Steamworks.NET runtime (embedded package). -->
+    <Compile Include="../../Packages/com.rlabrecque.steamworks.net/Runtime/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" />

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using ArenaShooter.Core;
+using ArenaShooter.Core.Net;
 using UnityEngine;
 
 namespace ArenaShooter.Gameplay
@@ -8,8 +10,22 @@ namespace ArenaShooter.Gameplay
     /// Carries a <see cref="Loadout"/>, fires hitscan shots along the aim transform, handles the
     /// sniper scope and weapon pickups. Driven by <see cref="PlayerController"/> or <see cref="BotController"/>.
     /// </summary>
+    /// <summary>A shot fired by an online client's own grunt, for the host to validate and apply.</summary>
+    public struct ShotReport
+    {
+        public Health Target;
+        public HitZone Zone;
+        public Vector3 From;
+        public Vector3 To;
+        public string WeaponId;
+    }
+
     public class WeaponHolder : MonoBehaviour
     {
+        [Tooltip("Online client's own grunt: shots and pickups are sent to the host instead of applied locally.")]
+        public bool remoteAuthority;
+        [Tooltip("Someone else's grunt driven by the network: only shows their weapon and shot effects.")]
+        public bool isProxy;
         [Tooltip("Shots travel along this transform's forward (camera for the player, head pivot for bots).")]
         public Transform aim;
         [Tooltip("Player only: the camera the first-person view model hangs from.")]
@@ -43,7 +59,12 @@ namespace ArenaShooter.Gameplay
         /// <summary>This holder fired a shot.</summary>
         public event Action<WeaponStats> Fired;
         /// <summary>Any holder fired (bots use this to hear gunfire).</summary>
-        public static event Action<Combatant, Vector3> AnyShotFired;
+        /// <summary>Any holder fired: shooter, bolt start, bolt end, weapon id (bots hear it; the host relays it online).</summary>
+        public static event Action<Combatant, Vector3, Vector3, string> AnyShotFired;
+        /// <summary>Online client: our shot, to send to the host.</summary>
+        public event Action<ShotReport> ShotReported;
+        /// <summary>Online client: we want this pickup; the host decides.</summary>
+        public event Action<WeaponPickup> PickupRequested;
 
         private Transform _owner;
         private Combatant _ownerCombatant;
@@ -116,7 +137,18 @@ namespace ArenaShooter.Gameplay
         {
             var pickup = NearbyPickup;
             if (pickup == null) return;
+            if (remoteAuthority)
+            {
+                PickupRequested?.Invoke(pickup);
+                NearbyPickup = null;
+                return;
+            }
+            PickupFrom(pickup);
+        }
 
+        /// <summary>Takes a pickup (also used by the host on behalf of online players).</summary>
+        public PickupResult PickupFrom(WeaponPickup pickup)
+        {
             PickupResult result = Loadout.Pickup(pickup.Weapon);
             switch (result.Outcome)
             {
@@ -131,14 +163,73 @@ namespace ArenaShooter.Gameplay
                     if (pickup.Weapon.Magazine + pickup.Weapon.Reserve == 0) pickup.Consume();
                     break;
                 default:
-                    return;
+                    return result;
             }
             PlayOneShot(ProceduralAudio.Pickup);
             NearbyPickup = null;
+            return result;
+        }
+
+        /// <summary>Online client: apply what the host granted us.</summary>
+        public void ApplyGrantedPickup(PickupOutcome outcome, string weaponId, int magazine, int reserve, int ammoTaken)
+        {
+            var stats = WeaponIds.Stats(WeaponIds.ToByte(weaponId));
+            if (stats == null) return;
+            if (outcome == PickupOutcome.AmmoTaken) Loadout.Find(weaponId)?.AddReserve(ammoTaken);
+            else Loadout.Pickup(new WeaponState(stats, magazine, reserve)); // swapped-out weapon is dropped by the host
+            PlayOneShot(ProceduralAudio.Pickup);
+        }
+
+        /// <summary>Online client: on death, lose everything but the rifle (the host drops them).</summary>
+        public void DiscardOnDeath()
+        {
+            IsZoomed = false;
+            Loadout.TakeDeathDrops(spawnWeapon.id);
+            BuildViewModel(Loadout.Active);
+        }
+
+        /// <summary>Host: mirror what an online player says they carry (for death drops and pickups).</summary>
+        public void ApplyMirrorLoadout(List<SlotState> slots, int activeIndex)
+        {
+            bool same = slots.Count == Loadout.Slots.Count;
+            for (int i = 0; same && i < slots.Count; i++) same = Loadout.Slots[i].Stats.id == WeaponIds.ToId(slots[i].Weapon);
+            if (!same)
+            {
+                Loadout.Clear();
+                foreach (var slot in slots)
+                {
+                    var stats = WeaponIds.Stats(slot.Weapon);
+                    if (stats != null) Loadout.Give(new WeaponState(stats));
+                }
+                if (Loadout.Slots.Count == 0) Loadout.Give(new WeaponState(spawnWeapon));
+            }
+            for (int i = 0; i < slots.Count && i < Loadout.Slots.Count; i++) Loadout.Slots[i].SetAmmo(slots[i].Magazine, slots[i].Reserve);
+            if (activeIndex != Loadout.ActiveIndex) Loadout.SwitchTo(activeIndex);
+        }
+
+        /// <summary>Online client: show the weapon a remote grunt is holding.</summary>
+        public void SetDisplayedWeapon(string weaponId)
+        {
+            if (string.IsNullOrEmpty(weaponId) || (Loadout.Active != null && Loadout.Active.Stats.id == weaponId)) return;
+            var stats = WeaponIds.Stats(WeaponIds.ToByte(weaponId));
+            if (stats == null) return;
+            Loadout.Clear();
+            Loadout.Give(new WeaponState(stats));
+        }
+
+        /// <summary>Draws and plays a shot that happened somewhere else on the network.</summary>
+        public void PlayRemoteShot(Vector3 from, Vector3 to, string weaponId)
+        {
+            Vector3 start = worldMuzzle != null ? worldMuzzle.position : from;
+            if (weaponId == "sniper") ShotEffects.ZapBeam(start, to, WeaponModels.ZapGlow);
+            else ShotEffects.PewBolt(start, to, WeaponModels.PewGlow);
+            PlayOneShot(ProceduralAudio.Gunshot(weaponId));
+            AnyShotFired?.Invoke(Owner, start, to, weaponId);
         }
 
         private void Update()
         {
+            if (isProxy) return; // driven by the network: no firing, reloading or pickups here
             if (Owner != null && !Owner.IsAlive)
             {
                 NearbyPickup = null;
@@ -201,6 +292,7 @@ namespace ArenaShooter.Gameplay
             WeaponStats stats = weapon.Stats;
             var ray = new Ray(aim.position, aim.forward);
             Vector3 end = ray.origin + ray.direction * stats.range;
+            bool reported = false;
 
             if (TraceShot(ray, stats.range, out RaycastHit hit))
             {
@@ -209,8 +301,19 @@ namespace ArenaShooter.Gameplay
                 Health target = hitbox != null ? hitbox.Owner : null;
                 if (target != null && !target.IsDead)
                 {
-                    var source = new DamageSource(Owner, stats.id, hitbox.zone);
-                    DamageResult damage = target.TakeDamage(stats.DamageFor(hitbox.zone), source);
+                    DamageResult damage;
+                    if (remoteAuthority)
+                    {
+                        // Online client: show the hit right away (predicted); the host applies it.
+                        float amount = Mathf.Min(stats.DamageFor(hitbox.zone), target.Current);
+                        damage = new DamageResult(amount, amount >= target.Current);
+                        ShotReported?.Invoke(new ShotReport { Target = target, Zone = hitbox.zone, From = ray.origin, To = hit.point, WeaponId = stats.id });
+                        reported = true;
+                    }
+                    else
+                    {
+                        damage = target.TakeDamage(stats.DamageFor(hitbox.zone), new DamageSource(Owner, stats.id, hitbox.zone));
+                    }
                     PlayOneShot(damage.Killed ? ProceduralAudio.Kill : hitbox.zone == HitZone.Head ? ProceduralAudio.HitHead : ProceduralAudio.HitBody);
                     HitConfirmed?.Invoke(new HitInfo(target, hitbox.zone, damage, hit.point));
                 }
@@ -220,6 +323,9 @@ namespace ArenaShooter.Gameplay
                 }
             }
 
+            if (remoteAuthority && !reported)
+                ShotReported?.Invoke(new ShotReport { Target = null, From = ray.origin, To = end, WeaponId = stats.id }); // a miss: others still see the bolt
+
             Vector3 from = _muzzle != null && !IsZoomed ? _muzzle.position
                 : worldMuzzle != null ? worldMuzzle.position
                 : ray.origin + ray.direction * 0.3f + Vector3.down * 0.1f;
@@ -228,7 +334,7 @@ namespace ArenaShooter.Gameplay
             PlayOneShot(ProceduralAudio.Gunshot(stats.id));
             _muzzleFlashUntil = Time.time + 0.05f;
             Fired?.Invoke(stats);
-            AnyShotFired?.Invoke(Owner, ray.origin);
+            AnyShotFired?.Invoke(Owner, from, end, stats.id);
         }
 
         private void UpdateAimTarget()
