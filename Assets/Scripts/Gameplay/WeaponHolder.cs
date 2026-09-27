@@ -78,7 +78,10 @@ namespace ArenaShooter.Gameplay
 
         private void Awake()
         {
-            _owner = transform.root;
+            // The grunt this weapon belongs to (the holder sits on the combatant's root object).
+            // Not transform.root: bots live under the map object, and treating the whole map as
+            // "the shooter" made their shots and sight ignore walls and other bots.
+            _owner = transform;
             Loadout = new Loadout(switchTime);
             Loadout.ActiveChanged += OnActiveChanged;
             ResetLoadout();
