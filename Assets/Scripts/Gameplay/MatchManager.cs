@@ -31,6 +31,8 @@ namespace ArenaShooter.Gameplay
     public class MatchManager : MonoBehaviour
     {
         public int scoreLimit = 25;
+        [Tooltip("Match length in seconds; 0 = no time limit.")]
+        public float timeLimit = 600f;
         public float respawnDelay = 3f;
         [Tooltip("Seconds the results show before a new match starts.")]
         public float restartDelay = 10f;
@@ -41,6 +43,9 @@ namespace ArenaShooter.Gameplay
         public IReadOnlyList<KillEvent> KillFeed => _feed;
         public bool IsOver => Score.IsOver;
         public float RestartCountdown => IsOver ? Mathf.Max(0f, _restartAt - Time.time) : 0f;
+        public bool HasTimeLimit => timeLimit > 0f;
+        /// <summary>Seconds left on the match clock (frozen once the match is over).</summary>
+        public float TimeRemaining => HasTimeLimit ? Mathf.Max(0f, timeLimit - ((IsOver ? _endedAt : Time.time) - _startedAt)) : 0f;
         public SniperSpawnPad SniperPad { get; set; }
 
         public event Action<KillEvent> Killed;
@@ -51,6 +56,8 @@ namespace ArenaShooter.Gameplay
         private readonly List<KillEvent> _feed = new List<KillEvent>();
         private readonly System.Random _random = new System.Random();
         private float _restartAt;
+        private float _startedAt;
+        private float _endedAt;
 
         private void Awake()
         {
@@ -58,9 +65,10 @@ namespace ArenaShooter.Gameplay
         }
 
         /// <summary>Call once, right after adding the component, before adding combatants.</summary>
-        public void Initialize(int limit)
+        public void Initialize(int limit, float timeLimitSeconds)
         {
             scoreLimit = limit;
+            timeLimit = timeLimitSeconds;
             Score = new MatchScore(scoreLimit);
         }
 
@@ -86,6 +94,7 @@ namespace ArenaShooter.Gameplay
         public void BeginMatch()
         {
             Score.Reset();
+            _startedAt = Time.time;
             _feed.Clear();
             _respawnAt.Clear();
             foreach (var pickup in FindObjectsByType<WeaponPickup>(FindObjectsSortMode.None))
@@ -112,7 +121,13 @@ namespace ArenaShooter.Gameplay
             if (_feed.Count > 20) _feed.RemoveAt(0);
             Killed?.Invoke(kill);
 
-            if (!wasOver && Score.IsOver) _restartAt = Time.time + restartDelay;
+            if (!wasOver && Score.IsOver) OnMatchEnded();
+        }
+
+        private void OnMatchEnded()
+        {
+            _endedAt = Time.time;
+            _restartAt = Time.time + restartDelay;
         }
 
         private void Update()
@@ -120,6 +135,13 @@ namespace ArenaShooter.Gameplay
             if (IsOver)
             {
                 if (Time.time >= _restartAt) BeginMatch();
+                return;
+            }
+
+            if (HasTimeLimit && Time.time - _startedAt >= timeLimit)
+            {
+                Score.EndByTime();
+                OnMatchEnded();
                 return;
             }
 

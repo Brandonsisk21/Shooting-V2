@@ -61,6 +61,49 @@ namespace ArenaShooter.Core.Tests
         }
 
         [Test]
+        public void TimeUpGivesWinToSoleLeader()
+        {
+            var score = new MatchScore(25);
+            score.Register(1, "A");
+            score.Register(2, "B");
+            score.RecordDeath(2, 1);
+            score.EndByTime();
+            Assert.IsTrue(score.IsOver);
+            Assert.IsFalse(score.IsDraw);
+            Assert.AreEqual(1, score.Winner.Id);
+        }
+
+        [Test]
+        public void TimeUpWithSharedLeadIsADraw()
+        {
+            var score = new MatchScore(25);
+            score.Register(1, "A");
+            score.Register(2, "B");
+            score.Register(3, "C");
+            score.RecordDeath(3, 1);
+            score.RecordDeath(3, 2);
+            score.EndByTime();
+            Assert.IsTrue(score.IsOver);
+            Assert.IsTrue(score.IsDraw);
+            Assert.IsNull(score.Winner);
+
+            score.Reset();
+            Assert.IsFalse(score.IsOver);
+        }
+
+        [Test]
+        public void TimeUpAfterScoreLimitChangesNothing()
+        {
+            var score = new MatchScore(1);
+            score.Register(1, "A");
+            score.Register(2, "B");
+            score.RecordDeath(2, 1);
+            score.EndByTime();
+            Assert.AreEqual(1, score.Winner.Id);
+            Assert.IsFalse(score.IsDraw);
+        }
+
+        [Test]
         public void ResetClearsScores()
         {
             var score = new MatchScore(1);

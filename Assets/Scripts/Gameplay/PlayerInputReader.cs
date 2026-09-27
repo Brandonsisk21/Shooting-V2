@@ -35,7 +35,7 @@ namespace ArenaShooter.Gameplay
     /// follow whichever was used last.
     ///
     /// Gamepad layout (Halo-style): LS move, RS look, A jump, RT fire, LT or RS-click scope,
-    /// X reload (hold X to pick up a weapon), Y switch weapon, View hold = scoreboard, Menu = help.
+    /// X reload (hold X to pick up a weapon), Y switch weapon, View hold = scoreboard, Menu = pause.
     /// </summary>
     public class PlayerInputReader : MonoBehaviour
     {
@@ -171,7 +171,6 @@ namespace ArenaShooter.Gameplay
             cmd.ToggleZoom |= pad.leftTrigger.wasPressedThisFrame || pad.rightStickButton.wasPressedThisFrame;
             cmd.SwitchWeapon |= pad.buttonNorth.wasPressedThisFrame;
             cmd.ScoreboardHeld |= pad.selectButton.isPressed;
-            cmd.ToggleHelp |= pad.startButton.wasPressedThisFrame;
             ReadReloadOrPickup(pad, ref cmd, deltaTime, pickupAvailable);
         }
 
@@ -208,5 +207,103 @@ namespace ArenaShooter.Gameplay
 
         private static bool Held(Keyboard kb, Key key) => kb[key].isPressed;
         private static bool Pressed(Keyboard kb, Key key) => kb[key].wasPressedThisFrame;
+    }
+
+    /// <summary>One frame of menu navigation from any device.</summary>
+    public struct MenuCommands
+    {
+        /// <summary>-1 = up, +1 = down.</summary>
+        public int Vertical;
+        /// <summary>-1 = left, +1 = right (changes option values).</summary>
+        public int Horizontal;
+        public bool Confirm;
+        public bool Back;
+        public InputDeviceKind Device;
+    }
+
+    /// <summary>
+    /// Menu navigation: arrows/WASD + Enter/Esc, or D-pad/left stick + A/B on a controller, with
+    /// key-repeat when a direction is held. Uses unscaled time so it works while paused.
+    /// </summary>
+    public static class MenuInput
+    {
+        private const float RepeatDelay = 0.35f;
+        private const float RepeatRate = 0.11f;
+
+        private static Vector2Int _heldDir;
+        private static float _repeatAt;
+        private static int _lastReadFrame = -1;
+        private static MenuCommands _last;
+
+        public static InputDeviceKind LastDevice { get; private set; } = InputDeviceKind.KeyboardMouse;
+
+        /// <summary>Esc or the controller Menu button this frame (pause / resume).</summary>
+        public static bool PausePressed()
+        {
+            var kb = Keyboard.current;
+            var pad = Gamepad.current;
+            return (kb != null && kb.escapeKey.wasPressedThisFrame) || (pad != null && pad.startButton.wasPressedThisFrame);
+        }
+
+        public static MenuCommands Read()
+        {
+            // Safe to call from several places in one frame: the first read is cached.
+            if (_lastReadFrame == Time.frameCount) return _last;
+            _lastReadFrame = Time.frameCount;
+
+            var cmd = new MenuCommands();
+            var kb = Keyboard.current;
+            var pad = Gamepad.current;
+            Vector2Int dir = Vector2Int.zero;
+
+            if (kb != null)
+            {
+                if (kb[Key.UpArrow].isPressed || kb[Key.W].isPressed) dir.y = -1;
+                if (kb[Key.DownArrow].isPressed || kb[Key.S].isPressed) dir.y = 1;
+                if (kb[Key.LeftArrow].isPressed || kb[Key.A].isPressed) dir.x = -1;
+                if (kb[Key.RightArrow].isPressed || kb[Key.D].isPressed) dir.x = 1;
+                cmd.Confirm |= kb[Key.Enter].wasPressedThisFrame || kb[Key.NumpadEnter].wasPressedThisFrame || kb[Key.Space].wasPressedThisFrame;
+                cmd.Back |= kb.escapeKey.wasPressedThisFrame || kb[Key.Backspace].wasPressedThisFrame;
+                if (kb.anyKey.wasPressedThisFrame) LastDevice = InputDeviceKind.KeyboardMouse;
+            }
+
+            if (pad != null)
+            {
+                Vector2 stick = pad.leftStick.ReadValue();
+                if (pad.dpad.up.isPressed || stick.y > 0.5f) dir.y = -1;
+                if (pad.dpad.down.isPressed || stick.y < -0.5f) dir.y = 1;
+                if (pad.dpad.left.isPressed || stick.x < -0.5f) dir.x = -1;
+                if (pad.dpad.right.isPressed || stick.x > 0.5f) dir.x = 1;
+                bool confirm = pad.buttonSouth.wasPressedThisFrame;
+                bool back = pad.buttonEast.wasPressedThisFrame || pad.startButton.wasPressedThisFrame;
+                cmd.Confirm |= confirm;
+                cmd.Back |= back;
+                if (confirm || back || stick.magnitude > 0.5f || pad.dpad.ReadValue().sqrMagnitude > 0.1f)
+                    LastDevice = InputDeviceKind.Gamepad;
+            }
+
+            // Emit a direction on press, then repeat while held.
+            float now = Time.unscaledTime;
+            if (dir != _heldDir)
+            {
+                _heldDir = dir;
+                _repeatAt = now + RepeatDelay;
+                cmd.Vertical = dir.y;
+                cmd.Horizontal = dir.x;
+            }
+            else if (dir != Vector2Int.zero && now >= _repeatAt)
+            {
+                _repeatAt = now + RepeatRate;
+                cmd.Vertical = dir.y;
+                cmd.Horizontal = dir.x;
+            }
+
+            cmd.Device = LastDevice;
+            _last = cmd;
+            return cmd;
+        }
+
+        /// <summary>Mouse movement or clicks in menus switch prompts back to keyboard/mouse.</summary>
+        public static void NoteMouseUsed() => LastDevice = InputDeviceKind.KeyboardMouse;
     }
 }

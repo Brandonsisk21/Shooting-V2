@@ -1,4 +1,4 @@
-# Arena Shooter — Game Design Document (v0.4 / Phase 1)
+# Arena Shooter — Game Design Document (v0.5 / Phase 1)
 
 > Status: DRAFT. Sections marked **[OPEN QUESTION]** need a decision before implementation begins.
 > This document is meant to be dropped into the project repo (e.g. `/docs/GDD.md`) so Claude Code can reference it across sessions.
@@ -70,7 +70,7 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - **DECIDED:** Keyboard + mouse **and Xbox controller**, usable interchangeably (on-screen prompts follow the last device used). Built on Unity's Input System package.
 - **Controller (Halo-style):** LS move, RS look, A jump, RT fire, LT or RS-click scope, X reload (**hold X** to pick up a weapon), Y switch weapon, View (hold) scoreboard, Menu help. Rumble on firing and taking damage.
 - Stick look: 15% deadzone, squared response curve, 200°/s yaw and 130°/s pitch at full tilt, with a Halo-style turn boost (up to 1.5x) after holding full sideways. Light **aim assist friction** (look slows to 55% while the crosshair is over an enemy) on controller only.
-- **[OPEN QUESTION]** Should aim assist also include magnetism (pulling the crosshair toward targets), like Halo? Currently friction only.
+- **DECIDED:** friction-only aim assist is a good start; revisit magnetism after more playtesting. Aim assist can be turned off in Settings.
 
 ### 2.4 Movement
 **DECIDED:** Classic Halo-style — **no sprint**, fixed jump height, single jump, strafing is the main mobility skill, moderate air control.
@@ -123,15 +123,16 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - **Phase 1:** Free-for-All (FFA) only — matches the request to start like classic Halo 2 FFA.
 
 ### 4.1 FFA rules (Phase 1 placeholders, all tunable on `ArenaBootstrap` / `MatchManager`)
-- +1 per kill, **-1 per suicide** (Halo rule). First to **25** wins; results show for 10s, then a new match starts (scores reset, everyone respawns, sniper pad resets).
+- +1 per kill, **-1 per suicide** (Halo rule).
+- **DECIDED:** match ends at **25 kills or 10 minutes**, whichever comes first. On time-out the leader wins; a shared top score is a **draw**. Results show for 10s, then a new match starts (scores reset, everyone respawns, sniper pad resets).
+- Both limits are adjustable on the match setup screen (score 10/15/25/50, time 5/10/15/20 min or none).
 - Respawn 3s after death at the spawn farthest from the nearest living enemy.
-- **[OPEN QUESTION]** Score limit (25 is Halo 2's FFA default), and whether to add a time limit (e.g. 10 minutes).
 
 ### 4.2 Bots
 - **DECIDED:** Bots act on their own with **no set paths**. They roam to random reachable spots on a navigation mesh baked from the map at runtime, go for the sniper and dropped weapons, react to enemies they see, hear (gunfire within 35 m) or get shot by, and fight everyone (FFA).
 - They use the **same movement, health and weapons as the player**, and are held to human-like limits: a vision cone (140°, 70 m), reaction delay, capped turn speed, and aim error that shrinks while tracking a target. In fights they strafe, jump occasionally, keep a preferred range per weapon (rifle 8–22 m, sniper 15–50 m) and swap to the sniper at range.
 - Arena match: **5 bots + you = 6 players** (inside the 4–8 target). Difficulty presets Easy / **Normal** (default) / Hard.
-- **[OPEN QUESTION]** Default difficulty and bot count once playtested.
+- **DECIDED:** keep **Normal** as the default for now. Bot count and difficulty are selectable in the menu.
 - **Later phases (not in initial build):** Team Slayer, Capture the Flag, King of the Hill, etc. — worth designing the map with these in mind (symmetry helps enormously here) even though they're out of scope now.
 
 ---
@@ -147,10 +148,31 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 ---
 
+### 5.1 Theme & final art style (PROPOSAL, awaiting owner sign-off)
+- **DECIDED:** final art is a **goofy cartoon style**, for characters **and** weapons.
+- **Proposed theme: "Space Grunts"** (working title): goofy cartoon space marines. Squat, bobble-headed troopers in oversized fishbowl helmets and chunky armor who crash-landed on a weird little alien planet and settle every argument with toy-like blasters.
+  - **Why it fits:** combines both ideas (space + goofy marines); keeps the outdoor arena (it becomes an alien planet surface); gives Red/Blue bases an identity (two crashed dropships), which suits later team modes.
+  - **World:** candy-colored alien grass, bulb and mushroom trees instead of oaks, floating rocks at the map edge, a huge ringed planet in the sky. Map "Overlook" becomes **"Crash Site"**.
+  - **Characters:** bobble heads with round visors, stubby legs, a big backpack; each player a bright color. Silhouettes stay chunky and readable (GDD pillar 3).
+  - **Weapons:** Rifle becomes the **"Pew Rifle"**, a chunky blaster with a little antenna firing glowing bolts (still hitscan). Sniper becomes the **"Long Zapper"**, an absurdly long barrel with a satellite-dish scope.
+  - **Humor, without breaking "crunchy" combat feel:** kills pop the helmet off in a confetti poof, a goofy announcer, "pew" sound design layered over punchy impacts.
+  - **Style references:** Ratchet & Clank's creatures, Fortnite's bright shapes, Splatoon's readability.
+- Alternatives considered: *backyard toy soldiers* (tiny plastic army men in a giant backyard; strong scale gag, but a crowded theme) and *food-fight arena* (fun, but weapons get harder to read).
+- **[OPEN QUESTION]** Approve "Space Grunts" (or pick an alternative), and the game's title.
+
 ## 6. Audio (placeholder — not blocking Phase 1 code)
 - Weapon fire, hit confirmation (headshot vs. body should sound distinct), footsteps, power-weapon spawn callout, death/respawn stingers.
 
 ---
+
+## 6.5 Menus (DECIDED)
+- On launch the game opens to a **main menu** over a live bots-only match with a slow camera orbit.
+- **Main:** Play vs Bots, Multiplayer, Settings, Controls, Quit.
+- **Play vs Bots (match setup):** map, bot count (0–7), bot difficulty, score limit, time limit; remembered between sessions.
+- **Multiplayer:** Host Game / Join Game, shown as "coming soon" until networking lands (see 9.1).
+- **Settings (saved):** mouse sensitivity, controller look speed, invert Y, aim assist, vibration, field of view, volume, controls hint.
+- **Pause (Esc / Menu button):** Resume, Settings, Controls, Quit to Main Menu. Pausing freezes the match (single-player).
+- Fully usable with mouse, keyboard or controller.
 
 ## 7. Technical Scope — Phase 1 Definition of Done
 
@@ -176,6 +198,15 @@ Status: everything below is implemented; the owner has played the first slices, 
 
 ---
 
+## 9.1 Online multiplayer plan (Phase 2, PROPOSAL)
+Goal: host a match from the menu, send a friend a short **join code**, play together (plus bots) over the internet with no port forwarding.
+
+- **Recommended stack:** Unity **Netcode for GameObjects** (host/client: the host's game runs the match, the bots and the rules) + Unity Gaming Services **Relay** (connects players through Unity's servers using join codes) + **Lobby** (optional: browse or quick-join). Free tier is fine for playing with friends. Needs a free Unity Cloud project linked to this Unity project (the owner has to do that step).
+- **Later alternative for a public release:** Steam (invite through Steam friends, Steam's own relay). Needs the Steam Direct fee and an app ID, so better once the game is further along.
+- **Work involved:** sync player movement (with client-side prediction so it feels responsive), host-authoritative hits/damage/health, weapons, pickups, the sniper pad, score and kill feed; bots run on the host; menu flow for Host / Join-with-code / lobby.
+- Both players must run the **same build**.
+- **[OPEN QUESTION]** Go ahead with Netcode for GameObjects + Relay (recommended), and confirm the owner can create a free Unity Cloud project.
+
 ## 9. Remaining Open Questions
 
 All core Phase 1 decisions are now locked (see summary below). The only thing left open:
@@ -183,7 +214,8 @@ All core Phase 1 decisions are now locked (see summary below). The only thing le
 1. Art reference for the *eventual* art pass (not urgent — Phase 1 is gray-box only, this matters once you get to the real art phase).
 2. Sniper "power weapon incoming" callout (optional polish, not required for Phase 1).
 3. Final name for the first map (working title "Overlook").
-4. FFA score limit / time limit (4.1), bot difficulty and count (4.2), aim assist magnetism (2.3.2).
+4. Theme and game title (5.1).
+5. Multiplayer approach (9.1).
 
 ### All decisions locked in for Phase 1:
 - **Engine:** Unity (C#)

@@ -33,10 +33,15 @@ namespace ArenaShooter.Gameplay
 
         private void Update()
         {
-            var keyboard = Keyboard.current;
+            if (ArenaBootstrap.IsPaused)
+            {
+                LastCommands = default;
+                return;
+            }
+
+            // After alt-tabbing the mouse can be released; a click captures it again.
             var mouse = Mouse.current;
-            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetCursorLocked(false);
-            else if (!CursorLocked && mouse != null && mouse.leftButton.wasPressedThisFrame)
+            if (!CursorLocked && mouse != null && mouse.leftButton.wasPressedThisFrame)
             {
                 SetCursorLocked(true);
                 return; // the click that captures the mouse shouldn't also fire

@@ -5,19 +5,23 @@ A Halo 2–style first-person arena shooter in Unity (C#), PC only. The design l
 
 ## Current state: Phase 1 complete (gray-box), needs playtesting
 
-Press Play and you drop into a **Free-for-All match against 5 bots** on **Overlook** (working
+Press Play and the **main menu** opens over a live bots-only match. Pick **Play vs Bots** to set up
+a match (map, bots, difficulty, score/time limit) and drop into a **Free-for-All** on **Overlook** (working
 title): an outdoor, Midship-style arena with 180° symmetry ([layout sketch](docs/maps/overlook-layout.svg)),
 a center sniper platform, Red (north) and Blue (south) bases with tunnels and overlooks, and side ridges.
 
 - **Bots** play on their own (no set paths): they roam, grab the sniper, hear gunfire, strafe,
-  and fight you and each other, with human-like reaction time and aim. First to 25 kills wins.
+  and fight you and each other, with human-like reaction time and aim. First to 25 kills or
+  most kills after 10 minutes wins (both adjustable).
 - **Weapons:** Rifle (spawn weapon, 40 head / 25 body, 5 shots/s, 30 rounds) and Sniper
   (center pad every 90 s, 100 head / 50 body, 2x scope, dropped on death).
 - **Health:** 100 HP, regenerates after 5 s without damage.
 - **HUD:** health + ammo panel bottom-left, kill feed, score, scoreboard, damage-direction arcs,
   red crosshair over enemies.
 - **Controls:** keyboard + mouse or an **Xbox controller**, switchable at any time.
-- **F10** swaps to the **test range** (dummies at known distances, jump-test blocks, no bots).
+- **Menus:** main menu, match setup, settings (saved), controls, pause (Esc / Menu button).
+  All usable with a controller.
+- The **Test Range** map (pick it in match setup) has dummies at known distances and jump-test blocks.
 
 ## Opening the project
 
@@ -26,8 +30,7 @@ a center sniper platform, Red (north) and Blue (south) bases with tunnels and ov
    version, choose the Unity 6 version you have installed.
 3. Unity installs the **Input System** package on first open. If it asks to enable the new input
    backends and restart, click **Yes**.
-4. Press **Play**. The map, bots and match build themselves. Click the Game view to capture the mouse,
-   or just pick up a controller.
+4. Press **Play**. The main menu appears; choose **Play vs Bots → Start Match**.
 
 **No input at all?** Edit → Project Settings → Player → Other Settings → **Active Input Handling**
 must be **Input System Package (New)** or **Both** (not "Input Manager (Old)").
@@ -44,18 +47,32 @@ must be **Input System Package (New)** or **Both** (not "Input Manager (Old)").
 | Pick up weapon | E | Hold X |
 | Switch weapon | Q, mouse wheel, 1, 2 | Y |
 | Scoreboard | Tab (hold) | View (hold) |
-| Help | F1 | Menu |
-| Switch map | F10 | — |
+| Pause menu | Esc | Menu |
+| Hide controls hint | F1 | — |
 | Hurt yourself (debug) | K | — |
-| Release mouse | Esc | — |
 
 Controller extras: rumble, a turn boost when holding the stick fully sideways, and light aim
 assist (look slows while the crosshair is on an enemy). Tune them on `Player → PlayerInputReader`.
 
+## Sharing the game with a friend
+
+**Right now (they play on their own, vs bots):**
+1. In Unity: **File → Build Profiles** (Unity 6), pick **Windows**, click **Build**, and choose an
+   empty folder like `Builds/Windows`.
+2. Zip that whole folder and send it (Google Drive, Dropbox, Discord...). Your friend unzips it and
+   runs the `.exe`. Windows may show a SmartScreen warning for unknown apps: **More info → Run anyway**.
+3. Optional: upload the zip to **itch.io** as a private or password-protected page, so friends
+   always get the latest version from one link.
+
+A Mac build has to be made on a Mac.
+
+**Playing together online** needs networking, which is the next big step. The plan (host → join
+code → friend joins) is in GDD 9.1.
+
 ### Tuning
 
 Numbers are serialized fields, so you can tweak them live in the Inspector during Play:
-`ArenaBootstrap` (bot count, difficulty, score limit — set before pressing Play),
+Match setup in the menu (bots, difficulty, score/time limit), Settings in the menu (sensitivity, FOV, aim assist...),
 `Bot_* → BotController → Skill` (reaction, aim, vision), `Player → PlayerInputReader` (sensitivity,
 deadzones, aim assist, rumble), `Player → PlayerMotor → Settings` (movement), `Player → Health` (regen),
 `Player → WeaponHolder → Spawn Weapon` (rifle), `SniperPad → SniperSpawnPad` (sniper + timer).

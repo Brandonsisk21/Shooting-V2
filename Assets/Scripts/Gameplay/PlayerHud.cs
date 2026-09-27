@@ -51,7 +51,7 @@ namespace ArenaShooter.Gameplay
         private KillEvent? _killedBy;
         private float _lastHealth;
         private float _regenSeenAt = float.NegativeInfinity;
-        private bool _showHelp = true;
+        private bool _showHelp = GameSettings.ShowControlsHint;
         private GUIStyle _small, _label, _medium, _big, _title;
 
         private static readonly Color HeadColor = new Color(1f, 0.85f, 0.2f);
@@ -65,6 +65,12 @@ namespace ArenaShooter.Gameplay
             _lastHealth = health.Current;
         }
 
+        private void OnEnable() => GameSettings.Changed += OnSettingsChanged;
+
+        private void OnDisable() => GameSettings.Changed -= OnSettingsChanged;
+
+        private void OnSettingsChanged() => _showHelp = GameSettings.ShowControlsHint;
+
         private void OnDestroy()
         {
             if (MatchManager.Current != null) MatchManager.Current.Killed -= OnKill;
@@ -72,7 +78,12 @@ namespace ArenaShooter.Gameplay
 
         private void Update()
         {
-            if (player.LastCommands.ToggleHelp) _showHelp = !_showHelp;
+            if (player.LastCommands.ToggleHelp)
+            {
+                _showHelp = !_showHelp;
+                GameSettings.ShowControlsHint = _showHelp;
+                GameSettings.Save();
+            }
             _numbers.RemoveAll(n => Time.time - n.Time > DamageNumberDuration);
             _arcs.RemoveAll(a => Time.time - a.Time > DamageArcDuration);
             if (health.Current > _lastHealth + 0.01f) _regenSeenAt = Time.time;
@@ -149,7 +160,7 @@ namespace ArenaShooter.Gameplay
             else if (player.LastCommands.ScoreboardHeld && match != null) DrawScoreboard(w, h * 0.22f, match);
 
             if (_showHelp && !matchOver) DrawHelp(gamepad);
-            if (Cursor.lockState != CursorLockMode.Locked && !gamepad)
+            if (Cursor.lockState != CursorLockMode.Locked && !gamepad && !ArenaBootstrap.IsPaused)
                 HudSkin.Label(new Rect(0, h * 0.3f, w, 50), "Click to play", _big, Color.white, TextAnchor.MiddleCenter);
         }
 
@@ -441,7 +452,13 @@ namespace ArenaShooter.Gameplay
 
             var panel = new Rect(w - Margin - 230f, h - Margin - 86f, 230f, 86f);
             HudSkin.RoundedRect(panel, HudSkin.Panel);
-            HudSkin.Label(new Rect(panel.x + 14f, panel.y + 6f, 200f, 18f), $"FREE FOR ALL  ·  FIRST TO {match.Score.ScoreLimit}", _small, HudSkin.Dim, TextAnchor.MiddleLeft);
+            HudSkin.Label(new Rect(panel.x + 14f, panel.y + 6f, 150f, 18f), $"FIRST TO {match.Score.ScoreLimit}", _small, HudSkin.Dim, TextAnchor.MiddleLeft);
+            if (match.HasTimeLimit)
+            {
+                bool lastMinute = match.TimeRemaining < 60f && !match.IsOver;
+                HudSkin.Label(new Rect(panel.xMax - 90f, panel.y + 4f, 76f, 22f), FormatTime(match.TimeRemaining), _label,
+                    lastMinute ? HudSkin.HealthMid : HudSkin.Text, TextAnchor.MiddleRight);
+            }
             ScoreRow(new Rect(panel.x + 14f, panel.y + 26f, 202f, 26f), "YOU", combatant.color, me != null ? me.Score : 0, match.Score.ScoreLimit, true);
             if (rival != null)
             {
@@ -477,10 +494,10 @@ namespace ArenaShooter.Gameplay
         {
             string text = gamepad
                 ? "LS move   RS look   A jump   RT fire   LT/RS-click scope\n" +
-                  "X reload (hold X: pick up)   Y switch   View: scores   Menu: help"
+                  "X reload (hold X: pick up)   Y switch   View: scores   Menu: pause"
                 : "WASD move   Space jump   Mouse aim   LMB fire   RMB scope\n" +
-                  "R reload   E pick up   Q/wheel switch   Tab scores   F1 help\n" +
-                  "K hurt yourself (test regen)   F10 switch map   Esc release mouse";
+                  "R reload   E pick up   Q/wheel switch   Tab scores   Esc pause\n" +
+                  "F1 hide this   K hurt yourself (test regen)";
             var r = new Rect(Margin, Margin, 470f, gamepad ? 64f : 80f);
             HudSkin.RoundedRect(r, HudSkin.Panel);
             HudSkin.Label(new Rect(r.x + 12f, r.y + 6f, r.width - 24f, 18f), mapName, _small, HudSkin.Accent, TextAnchor.UpperLeft, shadow: false);
@@ -496,7 +513,8 @@ namespace ArenaShooter.Gameplay
             var panel = new Rect(w / 2f - 250f, top, 500f, 64f + rowH * ranked.Count);
             HudSkin.RoundedRect(panel, new Color(0.03f, 0.05f, 0.08f, 0.85f));
             HudSkin.Label(new Rect(panel.x + 20f, panel.y + 10f, 300f, 24f), "FREE FOR ALL", _label, HudSkin.Accent, TextAnchor.MiddleLeft);
-            HudSkin.Label(new Rect(panel.xMax - 220f, panel.y + 10f, 200f, 24f), $"FIRST TO {match.Score.ScoreLimit}", _small, HudSkin.Dim, TextAnchor.MiddleRight);
+            string rules = $"FIRST TO {match.Score.ScoreLimit}" + (match.HasTimeLimit ? $"  ·  {FormatTime(match.TimeRemaining)} LEFT" : "");
+            HudSkin.Label(new Rect(panel.xMax - 260f, panel.y + 10f, 240f, 24f), rules, _small, HudSkin.Dim, TextAnchor.MiddleRight);
 
             float y = panel.y + 40f;
             float colK = panel.xMax - 170f, colD = panel.xMax - 110f, colS = panel.xMax - 50f;
@@ -525,10 +543,19 @@ namespace ArenaShooter.Gameplay
         private void DrawResults(float w, float h, MatchManager match)
         {
             var winner = match.Score.Winner;
-            var winnerCombatant = FindCombatant(winner.Id);
-            bool youWon = winner.Id == combatant.Id;
-            string title = youWon ? "YOU WIN!" : winner.Name.ToUpperInvariant() + " WINS";
-            HudSkin.Label(new Rect(0, h * 0.1f, w, 50f), title, _title, winnerCombatant != null ? winnerCombatant.color : Color.white, TextAnchor.MiddleCenter);
+            string title;
+            Color titleColor = Color.white;
+            if (winner == null)
+            {
+                title = "DRAW";
+            }
+            else
+            {
+                var winnerCombatant = FindCombatant(winner.Id);
+                title = winner.Id == combatant.Id ? "YOU WIN!" : winner.Name.ToUpperInvariant() + " WINS";
+                if (winnerCombatant != null) titleColor = winnerCombatant.color;
+            }
+            HudSkin.Label(new Rect(0, h * 0.1f, w, 50f), title, _title, titleColor, TextAnchor.MiddleCenter);
             HudSkin.Label(new Rect(0, h * 0.1f + 48f, w, 24f), $"Next match in {Mathf.CeilToInt(match.RestartCountdown)}s", _label, HudSkin.Dim, TextAnchor.MiddleCenter);
             DrawScoreboard(w, h * 0.1f + 84f, match);
         }

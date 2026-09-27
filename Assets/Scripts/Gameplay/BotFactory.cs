@@ -3,13 +3,6 @@ using UnityEngine;
 
 namespace ArenaShooter.Gameplay
 {
-    public enum BotDifficulty
-    {
-        Easy,
-        Normal,
-        Hard,
-    }
-
     /// <summary>Assembles a bot: same body, motor, health and weapons as the player, plus a <see cref="BotController"/>.</summary>
     public static class BotFactory
     {
@@ -26,14 +19,14 @@ namespace ArenaShooter.Gameplay
             new Color(0.95f, 0.4f, 0.7f),   // pink
         };
 
-        public static BotSkill SkillFor(BotDifficulty difficulty) => difficulty switch
+        public static BotSkill SkillFor(Difficulty difficulty) => difficulty switch
         {
-            BotDifficulty.Easy => BotSkill.Easy(),
-            BotDifficulty.Hard => BotSkill.Hard(),
+            Difficulty.Easy => BotSkill.Easy(),
+            Difficulty.Hard => BotSkill.Hard(),
             _ => BotSkill.Normal(),
         };
 
-        public static Combatant Create(int index, BotDifficulty difficulty, Bounds roamArea, Transform parent)
+        public static Combatant Create(int index, Difficulty difficulty, Bounds roamArea, Transform parent)
         {
             string name = Names[index % Names.Length];
             Color color = Colors[index % Colors.Length];
