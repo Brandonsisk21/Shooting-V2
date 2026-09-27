@@ -106,8 +106,9 @@ namespace ArenaShooter.Gameplay
                 b.Box("BasePillar", new Vector3(x, (deck - 0.5f) / 2f, 20.5f), new Vector3(0.8f, deck - 0.5f, 0.8f), OutdoorPalette.StoneDark);
 
             // Railings along the front edge with a gap in the middle to drop down.
-            b.Box("BaseRailWest", new Vector3(-6.5f, deck + 0.55f, 20.2f), new Vector3(5f, 1.1f, 0.4f), red, blue);
-            b.Box("BaseRailEast", new Vector3(6.5f, deck + 0.55f, 20.2f), new Vector3(5f, 1.1f, 0.4f), red, blue);
+            // 1.3 m: hides a crouched grunt, lets you stand up to shoot over.
+            b.Box("BaseRailWest", new Vector3(-6.5f, deck + 0.65f, 20.2f), new Vector3(5f, 1.3f, 0.5f), red, blue);
+            b.Box("BaseRailEast", new Vector3(6.5f, deck + 0.65f, 20.2f), new Vector3(5f, 1.3f, 0.5f), red, blue);
 
             // Side landings + ramps down to the field.
             foreach (float x in new[] { -11f, 11f })
@@ -124,8 +125,8 @@ namespace ArenaShooter.Gameplay
             b.Ramp("OverlookRamp", new Vector3(8f, deck, 26f), new Vector3(3f, over, 26f), 2f, OutdoorPalette.Stone);
 
             // Crates in the tunnel under the deck.
-            b.Crate("TunnelCrate", new Vector3(5f, 0.6f, 24f), 1.2f, 15f);
-            b.Crate("TunnelCrate2", new Vector3(-4f, 0.6f, 25.5f), 1.2f, -10f);
+            b.Crate("TunnelCrate", new Vector3(5f, 0.75f, 24f), 1.5f, 15f);
+            b.Crate("TunnelCrate2", new Vector3(-4f, 0.75f, 25.5f), 1.5f, -10f);
 
             // Team stripe along the deck's front edge and glowing portholes on the hull wall.
             b.Visual(PrimitiveType.Cube, "DeckStripe", new Vector3(0f, deck - 0.3f, 19.98f), new Vector3(18f, 0.22f, 0.04f), red, blue);
@@ -140,21 +141,28 @@ namespace ArenaShooter.Gameplay
             b.Box("Ridge", new Vector3(18f, top / 2f, 0f), new Vector3(8f, top, 20f), OutdoorPalette.RockLight);
             b.Ramp("RidgeRampNorth", new Vector3(18f, 0f, 17f), new Vector3(18f, top, 10f), 4f, OutdoorPalette.RockLight);
             b.Ramp("RidgeRampSouth", new Vector3(18f, 0f, -17f), new Vector3(18f, top, -10f), 4f, OutdoorPalette.RockLight);
-            b.Box("RidgeWallNorth", new Vector3(14.3f, top + 0.55f, 5f), new Vector3(0.4f, 1.1f, 4f), OutdoorPalette.Rock);
-            b.Box("RidgeWallSouth", new Vector3(14.3f, top + 0.55f, -4f), new Vector3(0.4f, 1.1f, 4f), OutdoorPalette.Rock);
+            b.Box("RidgeWallNorth", new Vector3(14.35f, top + 0.65f, 5f), new Vector3(0.5f, 1.3f, 5f), OutdoorPalette.Rock);
+            b.Box("RidgeWallSouth", new Vector3(14.35f, top + 0.65f, -4f), new Vector3(0.5f, 1.3f, 5f), OutdoorPalette.Rock);
         }
 
         private static void BuildGroundCover(SymmetricBuilder b)
         {
             b.Tree("Tree_Field", new Vector3(10f, 0f, 7f), 4f, 1.6f);
-            b.Tree("Tree_BaseWest", new Vector3(-7f, 0f, 16f), 4.5f, 1.6f);
+            b.Tree("Tree_BaseWest", new Vector3(-6.5f, 0f, 17f), 4.5f, 1.6f);
             b.Tree("Tree_Corner", new Vector3(-16f, 0f, -20f), 4.2f, 1.8f);
 
-            b.RockBox("Rock_NearRamp", new Vector3(7f, 0.8f, -13f), new Vector3(3f, 1.6f, 1.6f), OutdoorPalette.Rock, 20f);
-            b.RockBox("Rock_Field", new Vector3(-10f, 1f, 3f), new Vector3(2.5f, 2f, 2.5f), OutdoorPalette.RockLight, 35f);
-            b.RockBox("Rock_Lane", new Vector3(12f, 0.75f, -8f), new Vector3(2f, 1.5f, 3f), OutdoorPalette.Rock, 10f);
+            // Cover sized to the two poses (GDD 3.1): ~1.3 m hides you crouched, 2.3 m+ hides you standing.
+            b.RockBox("Rock_NearRamp", new Vector3(7.5f, 1.2f, -13.5f), new Vector3(4.2f, 2.4f, 2.4f), OutdoorPalette.Rock, 20f);
+            b.RockBox("Rock_Field", new Vector3(-11f, 1.2f, 3.5f), new Vector3(3.4f, 2.4f, 3.4f), OutdoorPalette.RockLight, 35f);
+            b.RockBox("Rock_Lane", new Vector3(12.5f, 0.7f, -9f), new Vector3(2.6f, 1.4f, 4.2f), OutdoorPalette.Rock, 10f);
+            b.RockBox("Rock_Pillar", new Vector3(-13f, 1.3f, -12f), new Vector3(2.4f, 2.6f, 2.4f), OutdoorPalette.RockLight, 15f);
 
-            b.Box("LowWall", new Vector3(-2.5f, 0.6f, 10f), new Vector3(3.5f, 1.2f, 0.6f), OutdoorPalette.StoneDark);
+            b.Box("LowWall", new Vector3(-2.5f, 0.65f, 10f), new Vector3(4.6f, 1.3f, 0.8f), OutdoorPalette.StoneDark);
+
+            // Crate stack between center and base: full standing cover on the way in.
+            b.Crate("FieldCrate", new Vector3(6.5f, 0.7f, 15.5f), 1.4f, 12f);
+            b.Crate("FieldCrateTop", new Vector3(6.6f, 1.9f, 15.4f), 1.0f, 40f);
+            b.Crate("FieldCrateSide", new Vector3(5.2f, 0.5f, 16.3f), 1.0f, -8f);
         }
 
         /// <summary>
