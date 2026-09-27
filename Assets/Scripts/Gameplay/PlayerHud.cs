@@ -22,7 +22,9 @@ namespace ArenaShooter.Gameplay
         public SniperSpawnPad sniperPad;
         public string mapName = "";
 
-        private const float HitMarkerDuration = 0.25f;
+        private const float HitMarkerDuration = 0.35f;
+        private const float ReticleRadius = 15f;
+        private static readonly Color HitMarkerRed = new Color(1f, 0.15f, 0.12f);
         private const float DamageNumberDuration = 0.8f;
         private const float DamageArcDuration = 1.2f;
         private const float FeedDuration = 6f;
@@ -46,6 +48,7 @@ namespace ArenaShooter.Gameplay
         private readonly List<DamageArc> _arcs = new List<DamageArc>();
         private float _hitMarkerTime = float.NegativeInfinity;
         private Color _hitMarkerColor = Color.white;
+        private bool _hitMarkerKill;
         private string _notice = "";
         private Color _noticeColor = Color.white;
         private float _noticeTime = float.NegativeInfinity;
@@ -70,12 +73,22 @@ namespace ArenaShooter.Gameplay
         {
             GameSettings.Changed += OnSettingsChanged;
             NetSession.Notice += OnNetNotice;
+            Health.AnyDamaged += OnAnyDamaged;
         }
 
         private void OnDisable()
         {
             GameSettings.Changed -= OnSettingsChanged;
             NetSession.Notice -= OnNetNotice;
+            Health.AnyDamaged -= OnAnyDamaged;
+        }
+
+        /// <summary>Your grenade hurt someone else: same red X as a bullet hit.</summary>
+        private void OnAnyDamaged(Health victim, DamageResult result, DamageSource source)
+        {
+            if (source.WeaponId != "grenade" || source.Instigator == null || source.Instigator != combatant || victim == health) return;
+            _hitMarkerTime = Time.time;
+            _hitMarkerKill = result.Killed;
         }
 
         private void OnNetNotice(string text)
@@ -109,6 +122,7 @@ namespace ArenaShooter.Gameplay
         private void OnHit(HitInfo hit)
         {
             _hitMarkerTime = Time.time;
+            _hitMarkerKill = hit.Damage.Killed;
             _hitMarkerColor = hit.Damage.Killed ? HudSkin.Enemy : hit.Zone == HitZone.Head ? HeadColor : Color.white;
             _numbers.Add(new DamageNumber
             {
@@ -309,11 +323,8 @@ namespace ArenaShooter.Gameplay
                 HudSkin.DrawTexture(new Rect(c.x - 3f, c.y - 3f, 6f, 6f), HudSkin.Circle, col);
                 return;
             }
-            const float gap = 5f, len = 8f, thick = 2f;
-            HudSkin.Fill(new Rect(c.x - gap - len, c.y - thick / 2, len, thick), col);
-            HudSkin.Fill(new Rect(c.x + gap, c.y - thick / 2, len, thick), col);
-            HudSkin.Fill(new Rect(c.x - thick / 2, c.y - gap - len, thick, len), col);
-            HudSkin.Fill(new Rect(c.x - thick / 2, c.y + gap, thick, len), col);
+            // Circle reticle: the ring shows where you're aiming, the hit marker X appears inside it.
+            HudSkin.DrawTexture(new Rect(c.x - ReticleRadius, c.y - ReticleRadius, ReticleRadius * 2f, ReticleRadius * 2f), HudSkin.Ring, col);
             HudSkin.DrawTexture(new Rect(c.x - 1.5f, c.y - 1.5f, 3f, 3f), HudSkin.Circle, col);
         }
 
@@ -353,9 +364,10 @@ namespace ArenaShooter.Gameplay
         {
             float age = Time.time - _hitMarkerTime;
             if (age > HitMarkerDuration) return;
-            var col = _hitMarkerColor;
+            // Red X inside the reticle circle: your shot (or grenade) hit. Bigger and bolder on a kill.
+            var col = HitMarkerRed;
             col.a = 1f - age / HitMarkerDuration;
-            const float inner = 7f, len = 9f, thick = 2f;
+            float inner = 3.5f, len = _hitMarkerKill ? 10f : 8f, thick = _hitMarkerKill ? 3f : 2.2f;
             for (int i = 0; i < 4; i++)
             {
                 Matrix4x4 saved = GUI.matrix;

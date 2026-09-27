@@ -5,12 +5,14 @@ namespace ArenaShooter.Core.Tests
     public class GrenadeTests
     {
         [Test]
-        public void KillsInsideKillRadius()
+        public void DirectHitDoes60AndTwoKill()
         {
             var g = new GrenadeStats();
-            var health = new HealthModel(100f);
-            Assert.IsTrue(health.ApplyDamage(g.DamageAt(0f)).Killed);
+            Assert.AreEqual(60f, g.DamageAt(0f));
             Assert.AreEqual(g.maxDamage, g.DamageAt(g.killRadius));
+            var health = new HealthModel(100f);
+            Assert.IsFalse(health.ApplyDamage(g.DamageAt(0f)).Killed, "one grenade alone doesn't kill a full-health grunt");
+            Assert.IsTrue(health.ApplyDamage(g.DamageAt(0f)).Killed);
         }
 
         [Test]

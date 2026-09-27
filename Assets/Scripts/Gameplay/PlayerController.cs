@@ -1,3 +1,4 @@
+using ArenaShooter.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -20,6 +21,8 @@ namespace ArenaShooter.Gameplay
 
         public bool IsDead => health != null && health.IsDead;
         public PlayerCommands LastCommands { get; private set; }
+
+        private readonly CrouchInput _crouch = new CrouchInput();
 
         private void Start()
         {
@@ -54,11 +57,12 @@ namespace ArenaShooter.Gameplay
 
             if (IsDead)
             {
+                _crouch.Reset();
                 motor.Move(Vector2.zero, false, Time.deltaTime);
                 return;
             }
 
-            motor.WantsCrouch = cmd.CrouchHeld;
+            motor.WantsCrouch = _crouch.Update(GameSettings.CrouchMode, cmd.CrouchHeld, cmd.CrouchPressed, cmd.Jump);
             motor.Move(cmd.Move, cmd.Jump, Time.deltaTime);
             look.Zoom = weapons.CurrentZoom;
             look.Look(cmd.LookDegrees);

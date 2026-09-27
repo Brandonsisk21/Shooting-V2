@@ -249,6 +249,8 @@ namespace ArenaShooter.Gameplay
             p.Items.Add(Slider("Mouse sensitivity", 0.2f, 3f, 0.1f, () => GameSettings.MouseSensitivity, v => GameSettings.MouseSensitivity = v, v => v.ToString("0.0") + "x", null));
             p.Items.Add(Slider("Controller look speed", 0.3f, 2f, 0.1f, () => GameSettings.StickSensitivity, v => GameSettings.StickSensitivity = v, v => v.ToString("0.0") + "x", null));
             p.Items.Add(Toggle("Invert look (Y)", () => GameSettings.InvertY, v => GameSettings.InvertY = v, null));
+            p.Items.Add(Choice("Crouch", new[] { "Hold", "Toggle" }, () => (int)GameSettings.CrouchMode, v => { GameSettings.CrouchMode = (CrouchMode)v; GameSettings.Save(); },
+                "Hold: crouch while the button is down. Toggle: press once to crouch, again (or jump) to stand."));
             p.Items.Add(Toggle("Aim assist (controller)", () => GameSettings.AimAssist, v => GameSettings.AimAssist = v, "Aim slows down while your crosshair is on an enemy."));
             p.Items.Add(Toggle("Vibration", () => GameSettings.Rumble, v => GameSettings.Rumble = v, null));
             p.Items.Add(Slider("Field of view", 55f, 80f, 1f, () => GameSettings.FieldOfView, v => GameSettings.FieldOfView = v, v => v.ToString("0") + "°", "Vertical field of view."));
@@ -271,7 +273,7 @@ namespace ArenaShooter.Gameplay
                     "Jump                Space                   A\n" +
                     "Fire                Left mouse              RT\n" +
                     "Zoom / scope        Right mouse             Click right stick\n" +
-                    "Crouch (hold)       Left Ctrl or C          B or click left stick\n" +
+                    "Crouch              Left Ctrl or C          B or click left stick\n" +
                     "Throw grenade       G                       LT\n" +
                     "Reload              R                       X\n" +
                     "Pick up weapon      E                       Hold X\n" +

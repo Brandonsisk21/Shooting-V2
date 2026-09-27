@@ -9,8 +9,8 @@ namespace ArenaShooter.Core
     [Serializable]
     public class GrenadeStats
     {
-        public float maxDamage = 120f;
-        /// <summary>Full damage (a guaranteed kill at 100 HP) inside this radius (m).</summary>
+        public float maxDamage = 60f;
+        /// <summary>Full damage inside this radius (m).</summary>
         public float killRadius = 1.5f;
         /// <summary>No damage beyond this radius (m).</summary>
         public float blastRadius = 5f;

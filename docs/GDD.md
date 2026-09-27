@@ -53,15 +53,17 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 - Weapon switch time: 0.4s (can't fire while switching).
 
+**Reticle and hit marker (DECIDED):** a **circle reticle** with a center dot shows where you're aiming (turns red over an enemy). When your shot hits an enemy, a **red X** flashes inside the circle (bigger and bolder on a kill). Grenade hits on enemies show it too. The Long Zapper's scope keeps its own crosshair; the X shows there as well.
+
 ### 2.2.1 Grenades ("boom bombs")
 - **DECIDED:** Everyone spawns with **2 grenades**; more lie on **pickup pads** around the map (walk over to grab 2, up to a max of 4). A taken pad refills after 30 s.
 - Thrown (G / LT) in a lob along your aim; bounces with physics and explodes after a **2 s fuse**.
-- Damage (starting values, tunable in `GrenadeStats`): **120** within 1.5 m (a kill), falling off to 0 at **5 m**. Walls and cover block the blast. Thrower can hurt themselves. Blast pushes grunts away and shakes nearby cameras.
+- Damage (starting values, tunable in `GrenadeStats`): **DECIDED: 60** within 1.5 m, falling off to 0 at **5 m** (a grenade alone doesn't kill a full-health grunt; it sets up the rifle finish, or two grenades kill). Walls and cover block the blast. Thrower can hurt themselves. Blast pushes grunts away and shakes nearby cameras.
 - Bots throw grenades at enemies 7–22 m away now and then, and run from live grenades near them.
 - Grenades are **not** dropped on death (not specified; flag if this should change).
 
 ### 2.2.2 Crouch
-- **DECIDED:** Crouch is **hold** (Left Ctrl / C, B / left-stick click). Height 1.8 → 1.2 m, eyes 1.6 → 1.05 m, move speed 6 → 3 m/s; hitboxes shrink with it. You can't stand up under a low ceiling. Bots crouch-strafe in long-range fights.
+- **DECIDED:** Crouch is **hold or toggle, picked in Settings → Crouch** (default Hold; in Toggle mode jumping or dying stands you up). Buttons: Left Ctrl / C, B / left-stick click. Height 1.8 → 1.2 m, eyes 1.6 → 1.05 m, move speed 6 → 3 m/s; hitboxes shrink with it. You can't stand up under a low ceiling. Bots crouch-strafe in long-range fights.
 
 ### 2.3 Sniper Respawn Logic
 - **DECIDED:** Sniper spawns at map center on a **fixed 90-second timer**, regardless of pickup state.

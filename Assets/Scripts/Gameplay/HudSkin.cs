@@ -18,10 +18,12 @@ namespace ArenaShooter.Gameplay
         public static readonly Color HealthLow = new Color(1f, 0.3f, 0.25f);
         public static readonly Color Enemy = new Color(1f, 0.3f, 0.25f);
 
-        private static Texture2D _rounded, _circle, _arc, _vignette;
+        private static Texture2D _rounded, _circle, _arc, _vignette, _ring;
         private static GUIStyle _roundedStyle;
 
         public static Texture2D Circle => _circle != null ? _circle : _circle = MakeCircle(64);
+        /// <summary>A thin circle outline (the crosshair reticle).</summary>
+        public static Texture2D Ring => _ring != null ? _ring : _ring = MakeRing(64, 4.5f);
         public static Texture2D Arc => _arc != null ? _arc : _arc = MakeArc(128);
         public static Texture2D Vignette => _vignette != null ? _vignette : _vignette = MakeVignette(128);
 
@@ -94,6 +96,22 @@ namespace ArenaShooter.Gameplay
             {
                 float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(r, r));
                 px[y * size + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(r - d));
+            }
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
+        }
+
+        private static Texture2D MakeRing(int size, float thickness)
+        {
+            var tex = NewTexture(size, "HudRing");
+            var px = new Color[size * size];
+            float r = size * 0.5f, mid = r - thickness * 0.5f - 1f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(r, r));
+                px[y * size + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(thickness * 0.5f - Mathf.Abs(d - mid) + 0.5f));
             }
             tex.SetPixels(px);
             tex.Apply();

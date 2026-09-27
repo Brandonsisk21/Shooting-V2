@@ -22,7 +22,7 @@ a center sniper platform, Red (north) and Blue (south) bases with tunnels and ov
 
 ![Space Grunts](docs/art/grunts-lineup.png)
 - **Health:** 100 HP, regenerates after 5 s without damage.
-- **HUD:** health + ammo panel bottom-left, kill feed, score, scoreboard, damage-direction arcs,
+- **HUD:** circle reticle with a red X hit marker, health + ammo panel bottom-left, kill feed, score, scoreboard, damage-direction arcs,
   red crosshair over enemies.
 - **Controls:** keyboard + mouse or an **Xbox controller**, switchable at any time.
 - **Crouch, grenades, rifle zoom:** hold crouch to duck behind cover (smaller hitbox, slower);
@@ -54,7 +54,7 @@ must be **Input System Package (New)** or **Both** (not "Input Manager (Old)").
 | Jump | Space | A |
 | Fire | Left mouse | RT |
 | Zoom (Pew Rifle 1.5x) / scope (Long Zapper 2x) | Right mouse | Click right stick |
-| Crouch (hold) | Left Ctrl or C | B or click left stick |
+| Crouch (hold or toggle, see Settings) | Left Ctrl or C | B or click left stick |
 | Throw grenade | G | LT |
 | Reload | R | X |
 | Pick up weapon | E | Hold X |

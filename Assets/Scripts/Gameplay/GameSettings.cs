@@ -25,6 +25,7 @@ namespace ArenaShooter.Gameplay
         public static float Volume = 0.8f;
         public static bool ShowControlsHint = true;
         public static int GraphicsQuality = GraphicsSetup.High;
+        public static CrouchMode CrouchMode = CrouchMode.Hold;
         public static MatchSetup LastSetup = new MatchSetup();
 
         public static event Action Changed;
@@ -41,6 +42,7 @@ namespace ArenaShooter.Gameplay
             FieldOfView = PlayerPrefs.GetFloat(Prefix + "fov", 60f);
             Volume = PlayerPrefs.GetFloat(Prefix + "volume", 0.8f);
             ShowControlsHint = PlayerPrefs.GetInt(Prefix + "hint", 1) == 1;
+            CrouchMode = PlayerPrefs.GetInt(Prefix + "crouchToggle", 0) == 1 ? CrouchMode.Toggle : CrouchMode.Hold;
             GraphicsQuality = Mathf.Clamp(PlayerPrefs.GetInt(Prefix + "graphics", GraphicsSetup.High), GraphicsSetup.Low, GraphicsSetup.High);
 
             var d = new MatchSetup();
@@ -65,6 +67,7 @@ namespace ArenaShooter.Gameplay
             PlayerPrefs.SetFloat(Prefix + "volume", Volume);
             PlayerPrefs.SetInt(Prefix + "hint", ShowControlsHint ? 1 : 0);
             PlayerPrefs.SetInt(Prefix + "graphics", GraphicsQuality);
+            PlayerPrefs.SetInt(Prefix + "crouchToggle", CrouchMode == CrouchMode.Toggle ? 1 : 0);
             PlayerPrefs.SetInt(Prefix + "map", (int)LastSetup.map);
             PlayerPrefs.SetInt(Prefix + "bots", LastSetup.botCount);
             PlayerPrefs.SetInt(Prefix + "difficulty", (int)LastSetup.difficulty);

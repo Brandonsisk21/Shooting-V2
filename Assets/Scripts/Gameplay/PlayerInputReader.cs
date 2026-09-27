@@ -19,6 +19,8 @@ namespace ArenaShooter.Gameplay
         public bool Jump;
         /// <summary>Held (Halo-style hold-to-crouch).</summary>
         public bool CrouchHeld;
+        /// <summary>Crouch button went down this frame (toggle mode).</summary>
+        public bool CrouchPressed;
         public bool ThrowGrenade;
         public bool Fire;
         public bool ToggleZoom;
@@ -127,6 +129,7 @@ namespace ArenaShooter.Gameplay
                 cmd.Move += new Vector2(x, y);
                 cmd.Jump |= Pressed(kb, Key.Space);
                 cmd.CrouchHeld |= Held(kb, Key.LeftCtrl) || Held(kb, Key.C);
+                cmd.CrouchPressed |= Pressed(kb, Key.LeftCtrl) || Pressed(kb, Key.C);
                 cmd.ThrowGrenade |= Pressed(kb, Key.G);
                 cmd.Reload |= Pressed(kb, Key.R);
                 cmd.Pickup |= Pressed(kb, Key.E);
@@ -174,6 +177,7 @@ namespace ArenaShooter.Gameplay
 
             cmd.Jump |= pad.buttonSouth.wasPressedThisFrame;
             cmd.CrouchHeld |= pad.buttonEast.isPressed || pad.leftStickButton.isPressed;
+            cmd.CrouchPressed |= pad.buttonEast.wasPressedThisFrame || pad.leftStickButton.wasPressedThisFrame;
             cmd.ThrowGrenade |= pad.leftTrigger.wasPressedThisFrame;
             cmd.Fire |= pad.rightTrigger.wasPressedThisFrame;
             cmd.ToggleZoom |= pad.rightStickButton.wasPressedThisFrame;
