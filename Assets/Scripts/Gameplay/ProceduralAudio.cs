@@ -23,6 +23,10 @@ namespace ArenaShooter.Gameplay
         public static AudioClip Pickup => Get("pickup", () => Sweep("pickup", 0.14f, 500f, 1400f, square: 0.3f, noise: 0f, gain: 0.35f));
         public static AudioClip Reload => Get("reload", () => Sweep("reload", 0.1f, 300f, 900f, square: 0.8f, noise: 0.2f, gain: 0.25f));
         public static AudioClip PowerWeaponSpawn => Get("power_spawn", () => Wobble("power_spawn", 0.8f, 250f, 800f, 0.45f));
+        /// <summary>Grenade: deep rumbling "BOOM" with a crackly tail.</summary>
+        public static AudioClip Boom => Get("boom", () => Sweep("boom", 1.1f, 180f, 35f, square: 0.2f, noise: 0.85f, gain: 0.95f));
+        /// <summary>Grenade throw: quick airy whoosh.</summary>
+        public static AudioClip Throw => Get("throw", () => Sweep("throw", 0.18f, 700f, 250f, square: 0f, noise: 0.7f, gain: 0.3f));
         /// <summary>Confetti "pop" when a grunt goes down.</summary>
         public static AudioClip Pop => Get("pop", () => Sweep("pop", 0.08f, 1500f, 200f, square: 0f, noise: 0.6f, gain: 0.5f));
 

@@ -158,13 +158,15 @@ namespace ArenaShooter.Gameplay
             }
             else
             {
-                if (weapons.IsZoomed) DrawScope(center, w, h);
-                else DrawCrosshair(center);
+                if (!weapons.IsZoomed) DrawCrosshair(center);
+                else if (weapons.Loadout.Active != null && weapons.Loadout.Active.Stats.id == "sniper") DrawScope(center, w, h);
+                else DrawRifleZoom(center);
                 DrawHitMarker(center);
                 DrawDamageNumbers();
                 DrawNotice(w, h);
                 DrawAimName(center);
                 DrawStatusPanel(h, gamepad);
+                DrawGrenades(h, gamepad);
                 DrawPickupPrompt(w, h, gamepad);
             }
 
@@ -183,6 +185,22 @@ namespace ArenaShooter.Gameplay
         }
 
         // ---------------------------------------------------------------- status panel (bottom-left)
+
+        /// <summary>Small grenade counter just above the status panel: one bomb icon per grenade carried.</summary>
+        private void DrawGrenades(float h, bool gamepad)
+        {
+            var thrower = combatant.Grenades;
+            if (thrower == null) return;
+            var pouch = thrower.Pouch;
+            var r = new Rect(Margin, h - Margin - 118f - 36f, 170f, 30f);
+            HudSkin.RoundedRect(r, HudSkin.Panel);
+            for (int i = 0; i < pouch.Max; i++)
+            {
+                var icon = new Rect(r.x + 12f + i * 22f, r.y + 7f, 16f, 16f);
+                HudSkin.DrawTexture(icon, HudSkin.Circle, i < pouch.Count ? new Color(1f, 0.6f, 0.25f) : new Color(1f, 1f, 1f, 0.15f));
+            }
+            HudSkin.Label(new Rect(r.x + 102f, r.y, 60f, r.height), gamepad ? "[LT]" : "[G]", _small, HudSkin.Dim, TextAnchor.MiddleRight);
+        }
 
         private void DrawStatusPanel(float h, bool gamepad)
         {
@@ -297,6 +315,22 @@ namespace ArenaShooter.Gameplay
             HudSkin.Fill(new Rect(c.x - thick / 2, c.y - gap - len, thick, len), col);
             HudSkin.Fill(new Rect(c.x - thick / 2, c.y + gap, thick, len), col);
             HudSkin.DrawTexture(new Rect(c.x - 1.5f, c.y - 1.5f, 3f, 3f), HudSkin.Circle, col);
+        }
+
+        /// <summary>Rifle zoom: no black mask, just a reticle ring around the normal crosshair.</summary>
+        private void DrawRifleZoom(Vector2 c)
+        {
+            bool onEnemy = weapons.AimTarget != null;
+            Color ring = onEnemy ? HudSkin.Enemy : new Color(1f, 1f, 1f, 0.75f);
+            const float r = 34f;
+            for (int i = 0; i < 48; i++)
+            {
+                if (i % 12 == 0) continue; // gaps at the cardinal points
+                float a = i / 48f * Mathf.PI * 2f;
+                HudSkin.DrawTexture(new Rect(c.x + Mathf.Cos(a) * r - 1.2f, c.y + Mathf.Sin(a) * r - 1.2f, 2.4f, 2.4f), HudSkin.Circle, ring);
+            }
+            DrawCrosshair(c);
+            HudSkin.Label(new Rect(c.x + 40f, c.y + 26f, 60f, 20f), $"{weapons.CurrentZoom:0.#}x", _small, Color.white, TextAnchor.MiddleLeft);
         }
 
         private void DrawScope(Vector2 c, float w, float h)
@@ -436,7 +470,8 @@ namespace ArenaShooter.Gameplay
                 float alpha = Mathf.Clamp01(FeedDuration - age);
 
                 string killer = k.Killer != null ? k.Killer.displayName : "";
-                string weapon = k.Killer == null ? "oops" : (k.WeaponId == "sniper" ? "ZAPPED" : "PEWED") + (k.Headshot ? " +HS" : "");
+                string verb = k.WeaponId == "sniper" ? "ZAPPED" : k.WeaponId == "grenade" ? "BOOMED" : "PEWED";
+                string weapon = k.Killer == null ? "oops" : verb + (k.Headshot ? " +HS" : "");
                 string victim = k.Victim.displayName;
                 float kw = killer.Length > 0 ? _label.CalcSize(new GUIContent(killer)).x : 0f;
                 float ww = _small.CalcSize(new GUIContent(weapon)).x;

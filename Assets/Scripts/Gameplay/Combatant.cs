@@ -27,6 +27,7 @@ namespace ArenaShooter.Gameplay
         public Health Health => _health != null ? _health : _health = GetComponent<Health>();
         public WeaponHolder Weapons => _weapons != null ? _weapons : _weapons = GetComponent<WeaponHolder>();
         public PlayerMotor Motor => _motor != null ? _motor : _motor = GetComponent<PlayerMotor>();
+        public GrenadeThrower Grenades => _grenades != null ? _grenades : _grenades = GetComponent<GrenadeThrower>();
         /// <summary>The look pivot (camera for the player, head for bots). Shots come from here.</summary>
         public Transform Eyes { get; set; }
         public Transform HeadCenter { get; set; }
@@ -39,6 +40,7 @@ namespace ArenaShooter.Gameplay
         private Health _health;
         private WeaponHolder _weapons;
         private PlayerMotor _motor;
+        private GrenadeThrower _grenades;
         private Collider[] _hitboxes = Array.Empty<Collider>();
 
         private void Awake()
@@ -71,6 +73,7 @@ namespace ArenaShooter.Gameplay
         {
             Health.ResetHealth();
             Weapons.ResetLoadout();
+            if (Grenades != null) Grenades.ResetPouch();
             Motor.Teleport(position, rotation);
             SetPresent(true);
             Respawned?.Invoke(this);

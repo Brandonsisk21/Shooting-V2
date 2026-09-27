@@ -48,6 +48,11 @@ namespace ArenaShooter.Gameplay
             map.Spawns.AddRange(b.Spawn("Spawn_CornerEast", new Vector3(18f, 0f, 26f)));
             map.Spawns.AddRange(b.Spawn("Spawn_CornerWest", new Vector3(-18f, 0f, 20f)));
 
+            // Grenade pickups (GDD 2.2.1): in front of each base, on each ridge, and in the open field.
+            b.GrenadeSpawn(new Vector3(0f, 0f, 17f));
+            b.GrenadeSpawn(new Vector3(18f, 2f, -6f));
+            b.GrenadeSpawn(new Vector3(7f, 0f, 7f));
+
             return map;
         }
 

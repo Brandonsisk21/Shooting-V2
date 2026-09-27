@@ -18,6 +18,28 @@ namespace ArenaShooter.Gameplay
         public float Zoom { get; set; } = 1f;
 
         private float _pitch;
+        private float _shake;
+
+        /// <summary>Kick the camera (grenade blasts). Strength 0..1.</summary>
+        public void Shake(float strength) => _shake = Mathf.Max(_shake, Mathf.Clamp01(strength));
+
+        private void OnEnable() => Grenade.Exploded += OnGrenadeExploded;
+        private void OnDisable() => Grenade.Exploded -= OnGrenadeExploded;
+
+        private void OnGrenadeExploded(Grenade grenade, Vector3 position)
+        {
+            float d = Vector3.Distance(position, transform.position);
+            if (d < 18f) Shake(1f - d / 18f);
+        }
+
+        private void LateUpdate()
+        {
+            if (view == null) return;
+            // Shake offsets the camera itself (not the pivot, which the motor moves for crouching).
+            _shake = Mathf.MoveTowards(_shake, 0f, Time.deltaTime * 2.5f);
+            float s = _shake * _shake * 0.12f;
+            view.transform.localPosition = s > 0f ? UnityEngine.Random.insideUnitSphere * s : Vector3.zero;
+        }
 
         private void Update()
         {

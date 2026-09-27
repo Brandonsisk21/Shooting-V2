@@ -131,6 +131,8 @@ namespace ArenaShooter.Gameplay.Net
             _match.Killed += OnHostKill;
             _match.MatchBegan += () => Broadcast(new MatchResetMsg(), true);
             WeaponHolder.AnyShotFired += OnHostShotFired;
+            Grenade.Thrown += OnHostGrenadeThrown;
+            Grenade.Exploded += OnHostGrenadeExploded;
             foreach (var c in _match.Combatants) WatchCombatant(c);
         }
 
@@ -169,6 +171,13 @@ namespace ArenaShooter.Gameplay.Net
             _local.NetOwner = SteamService.LocalId;
             _match.AddCombatant(_local);
             _local.Weapons.ShotReported += OnLocalShot;
+            if (_local.Grenades != null)
+            {
+                _local.Grenades.remoteAuthority = true;
+                _local.Grenades.ThrowReported += (from, velocity) =>
+                    Send(_hostPeer, new GrenadeThrowMsg { From = ToV3(from), Velocity = ToV3(velocity) }, true);
+            }
+            foreach (var g in GrenadePickup.All) g.SetMirror(true); // the host decides who gets them
             _local.Weapons.PickupRequested += p => Send(_hostPeer, new PickupRequestMsg { PickupId = p.NetId }, true);
             _local.Health.Died += (_, __) => _local.Weapons.DiscardOnDeath();
             _local.SetPresent(false); // wait for the host to spawn us
@@ -190,6 +199,8 @@ namespace ArenaShooter.Gameplay.Net
             catch (Exception) { /* Steam already gone */ }
 
             WeaponHolder.AnyShotFired -= OnHostShotFired;
+            Grenade.Thrown -= OnHostGrenadeThrown;
+            Grenade.Exploded -= OnHostGrenadeExploded;
             try
             {
                 _transport?.Dispose();
@@ -274,8 +285,11 @@ namespace ArenaShooter.Gameplay.Net
                     Health = c.Health.Current,
                     Weapon = c.Weapons.Loadout.Active != null ? WeaponIds.ToByte(c.Weapons.Loadout.Active.Stats.id) : WeaponIds.None,
                     RespawnIn = _match.RespawnCountdown(c),
+                    Crouched = c.Motor != null && c.Motor.WantsCrouch,
+                    Grenades = (byte)(c.Grenades != null ? c.Grenades.Pouch.Count : 0),
                 });
             }
+            foreach (var g in GrenadePickup.All) snap.GrenadePickups.Add(g != null && g.Available);
             foreach (var e in _match.Score.Entries)
                 snap.Scores.Add(new ScoreSnap { Id = e.Id, Kills = e.Kills, Deaths = e.Deaths, Suicides = e.Suicides });
             foreach (var p in WeaponPickup.All)
@@ -317,6 +331,9 @@ namespace ArenaShooter.Gameplay.Net
                     break;
                 case PickupRequestMsg pickup:
                     OnPickupRequest(player, pickup);
+                    break;
+                case GrenadeThrowMsg grenade:
+                    OnGrenadeThrow(player, grenade);
                     break;
                 case GoodbyeMsg _:
                     RemovePlayer(peer, "left the game");
@@ -385,6 +402,7 @@ namespace ArenaShooter.Gameplay.Net
             if (state.Life != LifeOf(c) || !c.IsAlive) return; // stale: from before their last respawn
             var proxy = c.GetComponent<NetProxy>();
             proxy.AddPose(Time.timeAsDouble, ToVector(state.Position), state.Yaw, Mathf.Clamp(state.Pitch, -89f, 89f));
+            if (c.Motor != null) c.Motor.WantsCrouch = state.Crouched;
             c.Weapons.ApplyMirrorLoadout(state.Slots, state.ActiveSlot);
         }
 
@@ -404,6 +422,34 @@ namespace ArenaShooter.Gameplay.Net
             if (target == null || target == shooter || !target.IsAlive) return;
             if (Vector3.Distance(ToVector(shot.From), target.transform.position) > stats.range + 3f) return;
             target.Health.TakeDamage(stats.DamageFor(shot.Zone), new DamageSource(shooter, weaponId, shot.Zone));
+        }
+
+        private void OnGrenadeThrow(RemotePlayer player, GrenadeThrowMsg msg)
+        {
+            var c = player.Combatant;
+            var thrower = c.Grenades;
+            Vector3 from = ToVector(msg.From);
+            if (thrower == null || !c.IsAlive) return;
+            if (Vector3.Distance(from, c.transform.position) > 3.5f) return; // must come from where they are
+            thrower.ThrowForRemote(from, ToVector(msg.Velocity)); // checks their pouch and cooldown
+        }
+
+        private void OnHostGrenadeThrown(Grenade grenade, Vector3 velocity)
+        {
+            if (Role != NetRole.Host) return;
+            Broadcast(new GrenadeSpawnedMsg
+            {
+                Id = grenade.NetId,
+                ThrowerId = grenade.Thrower != null ? grenade.Thrower.Id : NetProtocol.NoId,
+                From = ToV3(grenade.transform.position),
+                Velocity = ToV3(velocity),
+            }, true);
+        }
+
+        private void OnHostGrenadeExploded(Grenade grenade, Vector3 position)
+        {
+            if (Role != NetRole.Host || grenade == null || grenade.IsMirror) return;
+            Broadcast(new GrenadeExplodedMsg { Id = grenade.NetId, Position = ToV3(position) }, true);
         }
 
         private void OnPickupRequest(RemotePlayer player, PickupRequestMsg request)
@@ -513,6 +559,7 @@ namespace ArenaShooter.Gameplay.Net
                 Yaw = _local.transform.eulerAngles.y,
                 Pitch = _local.Eyes != null ? Mathf.DeltaAngle(0f, _local.Eyes.localEulerAngles.x) : 0f,
                 ActiveSlot = (byte)loadout.ActiveIndex,
+                Crouched = _local.Motor != null && _local.Motor.WantsCrouch,
             };
             foreach (var w in loadout.Slots)
                 state.Slots.Add(new SlotState { Weapon = WeaponIds.ToByte(w.Stats.id), Magazine = (byte)w.Magazine, Reserve = (byte)w.Reserve });
@@ -590,6 +637,14 @@ namespace ArenaShooter.Gameplay.Net
                     break;
                 case MatchResetMsg _:
                     _match.MirrorMatchBegan();
+                    Grenade.ClearAll();
+                    break;
+                case GrenadeSpawnedMsg spawned:
+                    var thrower = spawned.ThrowerId == _localId ? _local : Combatant.Find(spawned.ThrowerId);
+                    Grenade.Throw(thrower, ToVector(spawned.From), ToVector(spawned.Velocity), MirrorGrenadeStats(thrower), mirror: true, netId: spawned.Id);
+                    break;
+                case GrenadeExplodedMsg exploded:
+                    Grenade.ExplodeMirror(exploded.Id, ToVector(exploded.Position), MirrorGrenadeStats(null));
                     break;
                 case GoodbyeMsg bye:
                     LeaveToMenu(string.IsNullOrEmpty(bye.Reason) ? "The host ended the game." : bye.Reason);
@@ -641,6 +696,7 @@ namespace ArenaShooter.Gameplay.Net
                 {
                     // Host is the authority on our health; correct drift (regen timing etc.).
                     if (c.Alive && _local.IsAlive && Mathf.Abs(_local.Health.Current - c.Health) > 2f) _local.Health.SetCurrent(c.Health);
+                    if (_local.Grenades != null) _local.Grenades.Pouch.Set(c.Grenades);
                     continue;
                 }
                 if (!_proxies.TryGetValue(c.Id, out var proxy) || proxy == null) continue;
@@ -660,8 +716,11 @@ namespace ArenaShooter.Gameplay.Net
                 if (c.Alive) driver.AddPose(snap.Time, ToVector(c.Position), c.Yaw, c.Pitch);
                 proxy.Health.SetCurrent(c.Alive ? c.Health : 0f);
                 proxy.Weapons.SetDisplayedWeapon(WeaponIds.ToId(c.Weapon));
+                if (proxy.Motor != null) proxy.Motor.WantsCrouch = c.Crouched;
             }
             SyncPickups(snap);
+            for (int i = 0; i < snap.GrenadePickups.Count && i < GrenadePickup.All.Count; i++)
+                GrenadePickup.All[i].SetMirror(snap.GrenadePickups[i]);
         }
 
         private static bool IsVisible(Combatant c)
@@ -747,6 +806,9 @@ namespace ArenaShooter.Gameplay.Net
             msg.Write(_writer);
             foreach (var peer in _players.Keys) _transport.Send(peer, _writer.Buffer, _writer.Length, reliable);
         }
+
+        private static GrenadeStats MirrorGrenadeStats(Combatant thrower) =>
+            thrower != null && thrower.Grenades != null ? thrower.Grenades.stats : new GrenadeStats();
 
         private static V3 ToV3(Vector3 v) => new V3(v.x, v.y, v.z);
         private static Vector3 ToVector(V3 v) => new Vector3(v.X, v.Y, v.Z);

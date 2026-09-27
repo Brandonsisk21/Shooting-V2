@@ -24,6 +24,16 @@ namespace ArenaShooter.Gameplay
         [Tooltip("A jump pressed this long before landing still fires on landing (seconds).")]
         public float jumpBufferTime = 0.1f;
 
+        [Header("Crouch")]
+        [Tooltip("Top speed while crouched (m/s).")]
+        public float crouchSpeed = 3f;
+        public float standHeight = 1.8f;
+        public float crouchHeight = 1.2f;
+        public float standEyeHeight = 1.6f;
+        public float crouchEyeHeight = 1.05f;
+        [Tooltip("How fast you go down/up (fraction of the full crouch per second).")]
+        public float crouchTransitionSpeed = 8f;
+
         public float JumpVelocity => Mathf.Sqrt(2f * gravity * jumpHeight);
     }
 }

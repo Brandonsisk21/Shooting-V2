@@ -42,7 +42,7 @@ namespace UnityEngine.InputSystem
     public enum Key
     {
         None, Space, Tab, A, D, E, K, Q, R, S, W, Digit1, Digit2, Escape,
-        LeftArrow, RightArrow, UpArrow, DownArrow, F1, F10, Enter, Backspace, NumpadEnter,
+        LeftArrow, RightArrow, UpArrow, DownArrow, F1, F10, Enter, Backspace, NumpadEnter, C, F, G, V, LeftCtrl,
     }
 
     public class InputDevice { }

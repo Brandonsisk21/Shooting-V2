@@ -15,6 +15,7 @@ namespace ArenaShooter.Core.Net
         PlayerState = 2,
         ShotReport = 3,
         PickupRequest = 4,
+        GrenadeThrow = 5,
 
         // host -> client
         Welcome = 20,
@@ -27,12 +28,14 @@ namespace ArenaShooter.Core.Net
         PickupGranted = 27,
         MatchReset = 28,
         Goodbye = 29,
+        GrenadeSpawned = 30,
+        GrenadeExploded = 31,
     }
 
     public static class NetProtocol
     {
         /// <summary>Bump when the wire format changes; host rejects mismatched clients.</summary>
-        public const byte Version = 1;
+        public const byte Version = 2; // v2: crouch, grenades
         public const float SnapshotRate = 20f;
         public const float PlayerStateRate = 30f;
         public const int NoId = -1;
@@ -44,10 +47,12 @@ namespace ArenaShooter.Core.Net
         public const byte None = 255;
         public const byte Rifle = 0;
         public const byte Sniper = 1;
+        /// <summary>Only used for damage/kill events (grenades aren't a held weapon).</summary>
+        public const byte Grenade = 2;
 
-        public static byte ToByte(string id) => id == "rifle" ? Rifle : id == "sniper" ? Sniper : None;
+        public static byte ToByte(string id) => id == "rifle" ? Rifle : id == "sniper" ? Sniper : id == "grenade" ? Grenade : None;
 
-        public static string ToId(byte b) => b == Rifle ? "rifle" : b == Sniper ? "sniper" : null;
+        public static string ToId(byte b) => b == Rifle ? "rifle" : b == Sniper ? "sniper" : b == Grenade ? "grenade" : null;
 
         public static WeaponStats Stats(byte b) => b == Sniper ? WeaponStats.Sniper() : b == Rifle ? WeaponStats.Rifle() : null;
     }
@@ -81,6 +86,9 @@ namespace ArenaShooter.Core.Net
                 case MsgType.PlayerState: return PlayerStateMsg.ReadBody(r);
                 case MsgType.ShotReport: return ShotReportMsg.ReadBody(r);
                 case MsgType.PickupRequest: return new PickupRequestMsg { PickupId = r.ReadInt() };
+                case MsgType.GrenadeThrow: return new GrenadeThrowMsg { From = r.ReadV3(), Velocity = r.ReadV3() };
+                case MsgType.GrenadeSpawned: return new GrenadeSpawnedMsg { Id = r.ReadInt(), ThrowerId = r.ReadInt(), From = r.ReadV3(), Velocity = r.ReadV3() };
+                case MsgType.GrenadeExploded: return new GrenadeExplodedMsg { Id = r.ReadInt(), Position = r.ReadV3() };
                 case MsgType.Welcome: return WelcomeMsg.ReadBody(r);
                 case MsgType.Roster: return RosterMsg.ReadBody(r);
                 case MsgType.Snapshot: return SnapshotMsg.ReadBody(r);
@@ -128,6 +136,7 @@ namespace ArenaShooter.Core.Net
         public V3 Position;
         public float Yaw, Pitch;
         public byte ActiveSlot;
+        public bool Crouched;
         public List<SlotState> Slots = new List<SlotState>();
         public override MsgType Type => MsgType.PlayerState;
 
@@ -138,6 +147,7 @@ namespace ArenaShooter.Core.Net
             w.WriteFloat(Yaw);
             w.WriteFloat(Pitch);
             w.WriteByte(ActiveSlot);
+            w.WriteBool(Crouched);
             w.WriteUInt((uint)Slots.Count);
             foreach (var s in Slots)
             {
@@ -149,7 +159,7 @@ namespace ArenaShooter.Core.Net
 
         internal static PlayerStateMsg ReadBody(NetReader r)
         {
-            var m = new PlayerStateMsg { Life = r.ReadInt(), Position = r.ReadV3(), Yaw = r.ReadFloat(), Pitch = r.ReadFloat(), ActiveSlot = r.ReadByte() };
+            var m = new PlayerStateMsg { Life = r.ReadInt(), Position = r.ReadV3(), Yaw = r.ReadFloat(), Pitch = r.ReadFloat(), ActiveSlot = r.ReadByte(), Crouched = r.ReadBool() };
             int n = r.ReadCount();
             for (int i = 0; i < n; i++) m.Slots.Add(new SlotState { Weapon = r.ReadByte(), Magazine = r.ReadByte(), Reserve = r.ReadByte() });
             return m;
@@ -274,6 +284,8 @@ namespace ArenaShooter.Core.Net
         public float Health;
         public byte Weapon;
         public float RespawnIn;
+        public bool Crouched;
+        public byte Grenades;
     }
 
     public struct ScoreSnap
@@ -306,6 +318,8 @@ namespace ArenaShooter.Core.Net
         public List<CombatantSnap> Combatants = new List<CombatantSnap>();
         public List<ScoreSnap> Scores = new List<ScoreSnap>();
         public List<PickupSnap> Pickups = new List<PickupSnap>();
+        /// <summary>Whether each map grenade pickup is there, in map build order.</summary>
+        public List<bool> GrenadePickups = new List<bool>();
         public override MsgType Type => MsgType.Snapshot;
 
         protected override void WriteBody(NetWriter w)
@@ -331,6 +345,8 @@ namespace ArenaShooter.Core.Net
                 w.WriteFloat(c.Health);
                 w.WriteByte(c.Weapon);
                 w.WriteFloat(c.RespawnIn);
+                w.WriteBool(c.Crouched);
+                w.WriteByte(c.Grenades);
             }
             w.WriteUInt((uint)Scores.Count);
             foreach (var s in Scores)
@@ -349,6 +365,8 @@ namespace ArenaShooter.Core.Net
                 w.WriteByte(p.Magazine);
                 w.WriteByte(p.Reserve);
             }
+            w.WriteUInt((uint)GrenadePickups.Count);
+            foreach (bool available in GrenadePickups) w.WriteBool(available);
         }
 
         internal static SnapshotMsg ReadBody(NetReader r)
@@ -365,6 +383,7 @@ namespace ArenaShooter.Core.Net
                 {
                     Id = r.ReadInt(), Position = r.ReadV3(), Yaw = r.ReadFloat(), Pitch = r.ReadFloat(), Alive = r.ReadBool(),
                     Health = r.ReadFloat(), Weapon = r.ReadByte(), RespawnIn = r.ReadFloat(),
+                    Crouched = r.ReadBool(), Grenades = r.ReadByte(),
                 });
             n = r.ReadCount();
             for (int i = 0; i < n; i++)
@@ -372,6 +391,8 @@ namespace ArenaShooter.Core.Net
             n = r.ReadCount();
             for (int i = 0; i < n; i++)
                 m.Pickups.Add(new PickupSnap { NetId = r.ReadInt(), Weapon = r.ReadByte(), Position = r.ReadV3(), Magazine = r.ReadByte(), Reserve = r.ReadByte() });
+            n = r.ReadCount();
+            for (int i = 0; i < n; i++) m.GrenadePickups.Add(r.ReadBool());
             return m;
         }
     }
@@ -489,6 +510,49 @@ namespace ArenaShooter.Core.Net
             PickupId = r.ReadInt(), Outcome = (PickupOutcome)(r.ReadByte() & 3), Weapon = r.ReadByte(),
             Magazine = r.ReadByte(), Reserve = r.ReadByte(), AmmoTaken = r.ReadInt(),
         };
+    }
+
+    /// <summary>Client threw a grenade (the host checks their pouch and spawns the real one).</summary>
+    public sealed class GrenadeThrowMsg : NetMessage
+    {
+        public V3 From, Velocity;
+        public override MsgType Type => MsgType.GrenadeThrow;
+
+        protected override void WriteBody(NetWriter w)
+        {
+            w.WriteV3(From);
+            w.WriteV3(Velocity);
+        }
+    }
+
+    /// <summary>A grenade was thrown: clients show it flying (it explodes when the host says so).</summary>
+    public sealed class GrenadeSpawnedMsg : NetMessage
+    {
+        public int Id;
+        public int ThrowerId = NetProtocol.NoId;
+        public V3 From, Velocity;
+        public override MsgType Type => MsgType.GrenadeSpawned;
+
+        protected override void WriteBody(NetWriter w)
+        {
+            w.WriteInt(Id);
+            w.WriteInt(ThrowerId);
+            w.WriteV3(From);
+            w.WriteV3(Velocity);
+        }
+    }
+
+    public sealed class GrenadeExplodedMsg : NetMessage
+    {
+        public int Id;
+        public V3 Position;
+        public override MsgType Type => MsgType.GrenadeExploded;
+
+        protected override void WriteBody(NetWriter w)
+        {
+            w.WriteInt(Id);
+            w.WriteV3(Position);
+        }
     }
 
     public sealed class MatchResetMsg : NetMessage

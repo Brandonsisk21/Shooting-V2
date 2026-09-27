@@ -57,13 +57,14 @@ namespace ArenaShooter.Core.Tests
         [Test]
         public void PlayerStateRoundTrip()
         {
-            var msg = new PlayerStateMsg { Life = 3, Position = new V3(1.5f, 2f, -30f), Yaw = 270f, Pitch = -12f, ActiveSlot = 1 };
+            var msg = new PlayerStateMsg { Life = 3, Position = new V3(1.5f, 2f, -30f), Yaw = 270f, Pitch = -12f, ActiveSlot = 1, Crouched = true };
             msg.Slots.Add(new SlotState { Weapon = WeaponIds.Rifle, Magazine = 30, Reserve = 0 });
             msg.Slots.Add(new SlotState { Weapon = WeaponIds.Sniper, Magazine = 3, Reserve = 8 });
             var back = RoundTrip(msg);
             Assert.AreEqual(3, back.Life);
             Assert.AreEqual(new V3(1.5f, 2f, -30f), back.Position);
             Assert.AreEqual(270f, back.Yaw);
+            Assert.IsTrue(back.Crouched);
             Assert.AreEqual(2, back.Slots.Count);
             Assert.AreEqual(WeaponIds.Sniper, back.Slots[1].Weapon);
             Assert.AreEqual(8, back.Slots[1].Reserve);
@@ -75,10 +76,11 @@ namespace ArenaShooter.Core.Tests
             var snap = new SnapshotMsg { Time = 123.456, HasTimeLimit = true, TimeRemaining = 530f, ScoreLimit = 25, PadHasWeapon = true, WinnerId = NetProtocol.NoId };
             for (int i = 0; i < 8; i++)
             {
-                snap.Combatants.Add(new CombatantSnap { Id = i + 1, Position = new V3(i, 0, -i), Yaw = i * 40f, Alive = i != 3, Health = 100f - i, Weapon = WeaponIds.Rifle, RespawnIn = i == 3 ? 2.5f : 0f });
+                snap.Combatants.Add(new CombatantSnap { Id = i + 1, Position = new V3(i, 0, -i), Yaw = i * 40f, Alive = i != 3, Health = 100f - i, Weapon = WeaponIds.Rifle, RespawnIn = i == 3 ? 2.5f : 0f, Crouched = i == 5, Grenades = (byte)(i % 5) });
                 snap.Scores.Add(new ScoreSnap { Id = i + 1, Kills = i * 3, Deaths = i, Suicides = i % 2 });
             }
             snap.Pickups.Add(new PickupSnap { NetId = 7, Weapon = WeaponIds.Sniper, Position = new V3(0, 4, 0), Magazine = 4, Reserve = 8 });
+            for (int i = 0; i < 6; i++) snap.GrenadePickups.Add(i % 2 == 0);
 
             byte[] bytes = snap.ToBytes();
             Assert.Less(bytes.Length, 1100, "stays under one unreliable packet (no fragmentation)");
@@ -91,6 +93,9 @@ namespace ArenaShooter.Core.Tests
             Assert.AreEqual(21, back.Scores[7].Kills);
             Assert.AreEqual(7, back.Pickups[0].NetId);
             Assert.AreEqual(NetProtocol.NoId, back.WinnerId);
+            Assert.IsTrue(back.Combatants[5].Crouched);
+            Assert.AreEqual(4, back.Combatants[4].Grenades);
+            CollectionAssert.AreEqual(new[] { true, false, true, false, true, false }, back.GrenadePickups);
         }
 
         [Test]
@@ -119,6 +124,13 @@ namespace ArenaShooter.Core.Tests
             Assert.IsTrue(rb.Entries[1].IsBot);
 
             Assert.AreEqual("host left", RoundTrip(new GoodbyeMsg { Reason = "host left" }).Reason);
+
+            var thrown = RoundTrip(new GrenadeThrowMsg { From = new V3(1, 2, 3), Velocity = new V3(0, 3, 16) });
+            Assert.AreEqual(new V3(0, 3, 16), thrown.Velocity);
+            var spawned = RoundTrip(new GrenadeSpawnedMsg { Id = 12, ThrowerId = 3, From = new V3(1, 2, 3), Velocity = new V3(4, 5, 6) });
+            Assert.AreEqual(3, spawned.ThrowerId);
+            var boom = RoundTrip(new GrenadeExplodedMsg { Id = 12, Position = new V3(9, 0, 9) });
+            Assert.AreEqual(12, boom.Id);
             Assert.IsInstanceOf<MatchResetMsg>(NetMessage.Read(new MatchResetMsg().ToBytes()));
         }
 
@@ -141,6 +153,8 @@ namespace ArenaShooter.Core.Tests
             Assert.AreEqual("rifle", WeaponIds.ToId(WeaponIds.ToByte("rifle")));
             Assert.AreEqual("sniper", WeaponIds.ToId(WeaponIds.ToByte("sniper")));
             Assert.AreEqual(WeaponIds.None, WeaponIds.ToByte("banana"));
+            Assert.AreEqual("grenade", WeaponIds.ToId(WeaponIds.ToByte("grenade")));
+            Assert.IsNull(WeaponIds.Stats(WeaponIds.Grenade), "grenades aren't a held weapon");
             Assert.AreEqual(100f, WeaponIds.Stats(WeaponIds.Sniper).headDamage);
         }
     }

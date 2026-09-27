@@ -49,6 +49,7 @@ namespace ArenaShooter.Gameplay
             weapons.audioSource = audio;
             weapons.isProxy = networkDriven;
             weapons.thirdPersonGunMount = CombatantBody.Build(combatant, head, color, visible: true);
+            root.AddComponent<GrenadeThrower>();
 
             if (networkDriven)
             {

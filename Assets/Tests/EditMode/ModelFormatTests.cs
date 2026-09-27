@@ -8,7 +8,7 @@ namespace ArenaShooter.Core.Tests
     public class ModelFormatTests
     {
         private static readonly string[] AllModels =
-            { "grunt", "pew_rifle", "long_zapper", "mushroom", "dropship", "crate", "rock_a", "rock_b", "rock_c" };
+            { "grunt", "pew_rifle", "long_zapper", "mushroom", "dropship", "crate", "rock_a", "rock_b", "rock_c", "boom_bomb" };
 
         private static string ModelsDir()
         {

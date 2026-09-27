@@ -242,7 +242,19 @@ def crate():
     return m
 
 
-MODELS = [grunt, pew_rifle, long_zapper, mushroom, dropship, crate]
+def boom_bomb():
+    """Goofy round grenade (~0.22 m): dark shell, glowing band, metal cap with a pull ring."""
+    m = Model("boom_bomb")
+    p = m.part("Bomb")
+    p.add("Color:3a3f52", sphere((0, 0, 0), 0.1, 24, 16))
+    p.add("Glow:ff8a2a", torus((0, 0, 0), 0.1, 0.014, 32, 8))
+    p.add("Color:c9ced9", lathe([(0, 0.08), (0.04, 0.08), (0.042, 0.115), (0.03, 0.125), (0, 0.126)], seg=18))
+    p.add("Color:ffd54a", torus((0.035, 0.14, 0), 0.028, 0.006, 20, 6, euler=(0, 0, 90)))
+    p.add("Glow:ff4a5a", sphere((0, 0.132, 0), 0.012, 10, 6))
+    return m
+
+
+MODELS = [grunt, pew_rifle, long_zapper, mushroom, dropship, crate, boom_bomb]
 
 
 def all_models():

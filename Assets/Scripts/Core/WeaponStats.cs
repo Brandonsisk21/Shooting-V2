@@ -43,7 +43,7 @@ namespace ArenaShooter.Core
             maxReserve = Unlimited,
             reloadTime = 2f,
             range = 150f,
-            zoom = 1f,
+            zoom = 1.5f, // light zoom; the Long Zapper's 2x stays the stronger scope
         };
 
         public static WeaponStats Sniper() => new WeaponStats

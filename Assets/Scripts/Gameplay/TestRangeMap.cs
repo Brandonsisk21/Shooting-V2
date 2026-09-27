@@ -24,6 +24,7 @@ namespace ArenaShooter.Gameplay
             BuildRange(root);
             map.SniperPad = BuildCenter(root);
             BuildDummies(root);
+            GrenadePickup.Create(new Vector3(-4f, 0f, PlayerSpawn.z + 5f), root);
             map.Spawns.Add(SpawnPoint.Create("Spawn", PlayerSpawn, PlayerSpawn + Vector3.forward, root));
             return map;
         }

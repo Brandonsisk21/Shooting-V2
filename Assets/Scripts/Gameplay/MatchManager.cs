@@ -165,6 +165,8 @@ namespace ArenaShooter.Gameplay
             foreach (var pickup in FindObjectsByType<WeaponPickup>(FindObjectsSortMode.None))
                 Destroy(pickup.gameObject);
             if (SniperPad != null) SniperPad.ResetTimer();
+            Grenade.ClearAll();
+            GrenadePickup.ResetAll();
             foreach (var c in _combatants) Respawn(c);
             MatchBegan?.Invoke();
         }

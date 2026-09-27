@@ -50,6 +50,14 @@ namespace ArenaShooter.Gameplay
             float bounce = Mathf.Abs(Mathf.Sin(_walkPhase)) * 0.05f * speed01;
             visual.localPosition = _visualBase + Vector3.up * bounce;
 
+            // Crouch: a goofy cartoon squash of the whole grunt (head kept round), matching the
+            // lowered hitboxes (head ends up ~1 m high).
+            float crouch = _motor != null ? _motor.CrouchAmount : 0f;
+            float squash = Mathf.Lerp(1f, 0.66f, crouch);
+            visual.localScale = new Vector3(1f + 0.08f * crouch, squash, 1f + 0.08f * crouch);
+            for (int i = 0; i < headParts.Length; i++)
+                if (headParts[i] != null) headParts[i].localScale = new Vector3(1f, 1f / squash, 1f);
+
             // Bobble: the head wobbles more the faster they move (plus a little idle sway).
             float wobble = 2f + 7f * speed01;
             var bobble = Quaternion.Euler(Mathf.Sin(_walkPhase * 0.9f) * wobble * 0.6f, 0f, Mathf.Sin(_walkPhase * 0.5f + 1f) * wobble);

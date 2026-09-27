@@ -46,6 +46,15 @@ namespace ArenaShooter.Gameplay
             headBox.AddComponent<Hitbox>().zone = HitZone.Head;
             combatant.HeadCenter = headBox.transform;
 
+            // Crouching lowers the eyes and shrinks/lowers these hitboxes (PlayerMotor).
+            var motor = combatant.Motor;
+            if (motor != null)
+            {
+                motor.eyePivot = head;
+                motor.bodyHitbox = capsule;
+                motor.headHitbox = headBox.transform;
+            }
+
             if (!visible) return null;
 
             var visual = new GameObject("GruntVisual").transform;

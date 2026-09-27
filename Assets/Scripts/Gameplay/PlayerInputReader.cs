@@ -17,6 +17,9 @@ namespace ArenaShooter.Gameplay
         /// <summary>Look change this frame in degrees (x = yaw, y = pitch up), before zoom scaling.</summary>
         public Vector2 LookDegrees;
         public bool Jump;
+        /// <summary>Held (Halo-style hold-to-crouch).</summary>
+        public bool CrouchHeld;
+        public bool ThrowGrenade;
         public bool Fire;
         public bool ToggleZoom;
         public bool Reload;
@@ -34,8 +37,9 @@ namespace ArenaShooter.Gameplay
     /// merges them into <see cref="PlayerCommands"/>. Either device works at any time; HUD prompts
     /// follow whichever was used last.
     ///
-    /// Gamepad layout (Halo-style): LS move, RS look, A jump, RT fire, LT or RS-click scope,
-    /// X reload (hold X to pick up a weapon), Y switch weapon, View hold = scoreboard, Menu = pause.
+    /// Gamepad layout (Halo-style): LS move, RS look, A jump, B (or LS-click) crouch, RT fire,
+    /// LT grenade, RS-click zoom, X reload (hold X to pick up a weapon), Y switch weapon,
+    /// View hold = scoreboard, Menu = pause.
     /// </summary>
     public class PlayerInputReader : MonoBehaviour
     {
@@ -122,6 +126,8 @@ namespace ArenaShooter.Gameplay
                 float y = (Held(kb, Key.W) || Held(kb, Key.UpArrow) ? 1f : 0f) - (Held(kb, Key.S) || Held(kb, Key.DownArrow) ? 1f : 0f);
                 cmd.Move += new Vector2(x, y);
                 cmd.Jump |= Pressed(kb, Key.Space);
+                cmd.CrouchHeld |= Held(kb, Key.LeftCtrl) || Held(kb, Key.C);
+                cmd.ThrowGrenade |= Pressed(kb, Key.G);
                 cmd.Reload |= Pressed(kb, Key.R);
                 cmd.Pickup |= Pressed(kb, Key.E);
                 cmd.SwitchWeapon |= Pressed(kb, Key.Q);
@@ -167,8 +173,10 @@ namespace ArenaShooter.Gameplay
             cmd.LookDegrees += new Vector2(lx * stickYawSpeed * boost, ly * stickPitchSpeed * pitchSign) * (friction * deltaTime);
 
             cmd.Jump |= pad.buttonSouth.wasPressedThisFrame;
+            cmd.CrouchHeld |= pad.buttonEast.isPressed || pad.leftStickButton.isPressed;
+            cmd.ThrowGrenade |= pad.leftTrigger.wasPressedThisFrame;
             cmd.Fire |= pad.rightTrigger.wasPressedThisFrame;
-            cmd.ToggleZoom |= pad.leftTrigger.wasPressedThisFrame || pad.rightStickButton.wasPressedThisFrame;
+            cmd.ToggleZoom |= pad.rightStickButton.wasPressedThisFrame;
             cmd.SwitchWeapon |= pad.buttonNorth.wasPressedThisFrame;
             cmd.ScoreboardHeld |= pad.selectButton.isPressed;
             ReadReloadOrPickup(pad, ref cmd, deltaTime, pickupAvailable);

@@ -14,6 +14,7 @@ namespace ArenaShooter.Gameplay
         public WeaponHolder weapons;
         public Health health;
         public PlayerInputReader input;
+        public GrenadeThrower grenades;
         [Tooltip("Debug: press K to hurt yourself for this much, to test regen.")]
         public float debugSelfDamage = 25f;
 
@@ -22,6 +23,7 @@ namespace ArenaShooter.Gameplay
 
         private void Start()
         {
+            if (grenades == null) grenades = GetComponent<GrenadeThrower>();
             weapons.Fired += stats =>
             {
                 if (stats.id == "sniper") input.Rumble(0.45f, 0.7f, 0.14f);
@@ -56,6 +58,7 @@ namespace ArenaShooter.Gameplay
                 return;
             }
 
+            motor.WantsCrouch = cmd.CrouchHeld;
             motor.Move(cmd.Move, cmd.Jump, Time.deltaTime);
             look.Zoom = weapons.CurrentZoom;
             look.Look(cmd.LookDegrees);
@@ -64,6 +67,7 @@ namespace ArenaShooter.Gameplay
             if (cmd.ToggleZoom) weapons.ToggleZoom();
             if (cmd.Reload) weapons.Reload();
             if (cmd.Pickup) weapons.TryPickup();
+            if (cmd.ThrowGrenade && grenades != null) grenades.TryThrowAlong(look.pivot);
             if (cmd.SwitchWeapon) weapons.SwitchNext();
             if (cmd.SwitchToSlot >= 0) weapons.SwitchTo(cmd.SwitchToSlot);
             if (cmd.DebugSelfDamage && !weapons.remoteAuthority) health.TakeDamage(debugSelfDamage); // offline/host only

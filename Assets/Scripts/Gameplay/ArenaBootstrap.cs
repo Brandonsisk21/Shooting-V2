@@ -276,13 +276,16 @@ namespace ArenaShooter.Gameplay
             var pivot = new GameObject("CameraPivot").transform;
             pivot.SetParent(root.transform, false);
             pivot.localPosition = new Vector3(0f, 1.6f, 0f);
-            var cam = pivot.gameObject.AddComponent<Camera>();
+            // Camera on its own child: the pivot moves for crouching, the camera shakes on blasts.
+            var camObject = new GameObject("Camera");
+            camObject.transform.SetParent(pivot, false);
+            var cam = camObject.AddComponent<Camera>();
             cam.tag = "MainCamera";
             cam.nearClipPlane = 0.03f;
             cam.farClipPlane = 1000f;
             cam.fieldOfView = GameSettings.FieldOfView;
             cam.clearFlags = CameraClearFlags.Skybox;
-            pivot.gameObject.AddComponent<AudioListener>();
+            camObject.AddComponent<AudioListener>();
 
             var audio = root.AddComponent<AudioSource>();
             audio.spatialBlend = 0f;
@@ -308,6 +311,8 @@ namespace ArenaShooter.Gameplay
             weapons.viewModelCamera = cam;
             weapons.audioSource = audio;
             weapons.trackAimTarget = true;
+
+            root.AddComponent<GrenadeThrower>();
 
             var input = root.AddComponent<PlayerInputReader>();
 

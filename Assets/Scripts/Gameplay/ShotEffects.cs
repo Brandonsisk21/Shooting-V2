@@ -42,6 +42,66 @@ namespace ArenaShooter.Gameplay
             fx._line.SetPosition(1, to);
         }
 
+        /// <summary>Grenade explosion: big flash, shockwave ring, sparks, smoke puff and a scorch mark.</summary>
+        public static void Blast(Vector3 position, float radius)
+        {
+            var flash = GrayBox.GlowVisual(PrimitiveType.Sphere, "BlastFlash", null, position, Vector3.one * 0.3f, new Color(1f, 0.75f, 0.35f, 0.9f));
+            var fx = flash.AddComponent<ShotEffects>();
+            fx._kind = Kind.Flash;
+            fx._lifetime = 0.22f;
+            fx._flashScale = Vector3.one * radius * 0.9f;
+
+            var ring = GrayBox.GlowVisual(PrimitiveType.Cylinder, "Shockwave", null, position + Vector3.up * 0.05f, new Vector3(0.3f, 0.01f, 0.3f), new Color(1f, 0.9f, 0.7f, 0.6f));
+            var rfx = ring.AddComponent<ShotEffects>();
+            rfx._kind = Kind.Flash;
+            rfx._lifetime = 0.35f;
+            rfx._flashScale = new Vector3(radius * 2f, 0.01f, radius * 2f);
+
+            if (Physics.Raycast(position + Vector3.up * 0.3f, Vector3.down, out RaycastHit ground, 2f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                var scorch = GrayBox.Visual(PrimitiveType.Cylinder, "BlastScorch", null, ground.point + ground.normal * 0.01f, new Vector3(radius * 0.6f, 0.005f, radius * 0.6f), new Color(0.16f, 0.1f, 0.2f));
+                scorch.transform.rotation = Quaternion.FromToRotation(Vector3.up, ground.normal);
+                Destroy(scorch, 8f);
+            }
+
+            Burst(position, 45, new Color(1f, 0.85f, 0.3f), new Color(1f, 0.4f, 0.15f), 6f, 12f, 0.35f, 0.7f, 0.05f, 0.14f, 0.6f);   // sparks
+            Burst(position, 18, new Color(0.75f, 0.7f, 0.85f, 0.7f), new Color(0.5f, 0.45f, 0.6f, 0.6f), 1f, 3f, 0.9f, 1.6f, 0.6f, 1.2f, -0.05f); // smoke
+        }
+
+        private static void Burst(Vector3 position, int count, Color a, Color b, float minSpeed, float maxSpeed,
+            float minLife, float maxLife, float minSize, float maxSize, float gravity)
+        {
+            var go = new GameObject("BlastParticles");
+            go.transform.position = position;
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.duration = 0.3f;
+            main.loop = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(minLife, maxLife);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(minSpeed, maxSpeed);
+            main.startSize = new ParticleSystem.MinMaxCurve(minSize, maxSize);
+            main.startColor = new ParticleSystem.MinMaxGradient(a, b);
+            main.gravityModifier = gravity;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.stopAction = ParticleSystemStopAction.Destroy;
+            var emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)count) });
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.2f;
+            var fade = ps.colorOverLifetime;
+            fade.enabled = true;
+            var gradient = new Gradient();
+            gradient.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+            fade.color = new ParticleSystem.MinMaxGradient(gradient);
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = GrayBox.VertexColorUnlit;
+            ps.Play();
+        }
+
         /// <summary>A miss: quick glowing flash plus a scorch mark on the surface.</summary>
         public static void Impact(Vector3 point, Vector3 normal, Color color)
         {

@@ -64,6 +64,9 @@ namespace ArenaShooter.Gameplay
 
         private float _strafeDir = 1f;
         private float _strafeSwitchAt;
+        private float _crouchUntil;
+        private GrenadeThrower _grenades;
+        private float _nextGrenadeThink;
         private float _stuckTime;
 
         private void Awake()
@@ -71,6 +74,7 @@ namespace ArenaShooter.Gameplay
             _self = GetComponent<Combatant>();
             _motor = GetComponent<PlayerMotor>();
             _weapons = GetComponent<WeaponHolder>();
+            _grenades = GetComponent<GrenadeThrower>();
             _path = new NavMeshPath();
             _noiseSeed = Random.value * 100f;
             _nextPerception = Time.time + Random.value * perceptionInterval; // stagger bots
@@ -119,6 +123,7 @@ namespace ArenaShooter.Gameplay
             if (_target != null && _target.IsAlive && _targetVisible)
             {
                 move = CombatMove(ref jump);
+                MaybeThrowGrenade();
                 AimAt(out lookYaw, out lookPitch);
                 TryShoot(lookYaw, lookPitch);
             }
@@ -157,8 +162,11 @@ namespace ArenaShooter.Gameplay
             transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
             head.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
 
+            Vector3 escape = GrenadeEscape();
+            if (escape != Vector3.zero) move = escape;
             HandleStuck(move, ref jump, dt);
             var input = new Vector2(Vector3.Dot(move, transform.right), Vector3.Dot(move, transform.forward));
+            _motor.WantsCrouch = Time.time < _crouchUntil && _targetVisible && !jump;
             _motor.Move(Vector2.ClampMagnitude(input, 1f), jump, dt);
 
             if (_weapons.NearbyPickup != null) _weapons.TryPickup();
@@ -262,6 +270,37 @@ namespace ArenaShooter.Gameplay
             pitch += (Mathf.PerlinNoise(_noiseSeed, t) * 2f - 1f) * error;
         }
 
+        /// <summary>Every few seconds in a fight, maybe lob a grenade at a target in mid range.</summary>
+        private void MaybeThrowGrenade()
+        {
+            if (_grenades == null || Time.time < _nextGrenadeThink) return;
+            _nextGrenadeThink = Time.time + Random.Range(2.5f, 5f);
+            if (!_grenades.CanThrow || Time.time - _acquiredAt < skill.reactionTime * 2f) return;
+
+            float distance = Vector3.Distance(transform.position, _target.transform.position);
+            if (distance < 7f || distance > 22f || Random.value > 0.4f) return;
+
+            // Aim at their feet with some error (worse bots are sloppier).
+            float error = skill.settledAimError * 0.25f;
+            Vector3 aimPoint = _target.transform.position + new Vector3(Random.Range(-error, error), 0.2f, Random.Range(-error, error));
+            Vector3 from = _grenades.SafeOrigin(head);
+            _grenades.TryThrowWithVelocity(from, _grenades.LobVelocity(from, aimPoint));
+        }
+
+        /// <summary>Run away from a live grenade that's about to go off nearby (direction, or zero).</summary>
+        private Vector3 GrenadeEscape()
+        {
+            foreach (var g in Grenade.Live)
+            {
+                if (g == null || g.Stats == null || g.TimeLeft > 1.8f) continue;
+                Vector3 away = transform.position - g.transform.position;
+                away.y = 0f;
+                if (away.sqrMagnitude > (g.Stats.blastRadius + 1f) * (g.Stats.blastRadius + 1f)) continue;
+                return away.sqrMagnitude > 0.01f ? away.normalized : transform.right;
+            }
+            return Vector3.zero;
+        }
+
         private void TryShoot(float aimYaw, float aimPitch)
         {
             var weapon = _weapons.Loadout.Active;
@@ -296,6 +335,8 @@ namespace ArenaShooter.Gameplay
                 if (Random.value < 0.7f) _strafeDir = -_strafeDir;
                 _strafeSwitchAt = Time.time + Random.Range(0.35f, 1.1f);
                 if (_motor.IsGrounded && Random.value < 0.12f) jump = true;
+                // Sometimes crouch-strafe at range to shrink their target (not up close: too slow).
+                else if (distance > 10f && Random.value < 0.2f) _crouchUntil = Time.time + Random.Range(0.8f, 1.8f);
             }
             Vector3 right = Quaternion.Euler(0f, _yaw, 0f) * Vector3.right;
             Vector3 move = approach + right * (_strafeDir * 0.9f);

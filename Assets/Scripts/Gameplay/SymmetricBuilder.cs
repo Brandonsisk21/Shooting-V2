@@ -58,6 +58,13 @@ namespace ArenaShooter.Gameplay
         public GameObject[] Visual(PrimitiveType type, string name, Vector3 center, Vector3 scale, Color color, Vector3 euler = default, bool glow = false) =>
             Visual(type, name, center, scale, color, color, euler, glow);
 
+        /// <summary>A grenade pickup pair (A is always created before B, so network indices match everywhere).</summary>
+        public void GrenadeSpawn(Vector3 position)
+        {
+            GrenadePickup.Create(position, Root);
+            GrenadePickup.Create(Twin(position), Root);
+        }
+
         public SpawnPoint[] Spawn(string name, Vector3 feetPosition)
         {
             return new[]
