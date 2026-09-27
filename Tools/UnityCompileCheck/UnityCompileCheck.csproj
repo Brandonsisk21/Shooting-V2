@@ -12,6 +12,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Assets/Scripts/**/*.cs" />
+    <!-- Stand-ins for package APIs (Input System) that aren't on NuGet. -->
+    <Compile Include="Stubs/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" />

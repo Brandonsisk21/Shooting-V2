@@ -14,7 +14,13 @@ namespace ArenaShooter.Gameplay
 
         public static MapInfo Build(Transform root)
         {
-            var map = new MapInfo { Name = DisplayName, Root = root };
+            var map = new MapInfo
+            {
+                Name = DisplayName,
+                Root = root,
+                PlayArea = new Bounds(new Vector3(0f, 4f, 0f), new Vector3(40f, 12f, 120f)),
+                HasBots = false,
+            };
             BuildRange(root);
             map.SniperPad = BuildCenter(root);
             BuildDummies(root);

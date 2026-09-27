@@ -8,7 +8,8 @@ namespace ArenaShooter.Gameplay
         public Transform body;
         public Transform pivot;
         public Camera view;
-        public float sensitivity = 2f;
+        [Tooltip("Overall look speed multiplier (device speeds live on PlayerInputReader).")]
+        public float sensitivity = 1f;
         [Tooltip("Unzoomed vertical field of view in degrees.")]
         public float baseFov = 60f;
         public float zoomTransitionSpeed = 25f;
@@ -26,12 +27,13 @@ namespace ArenaShooter.Gameplay
             view.fieldOfView = Mathf.Lerp(view.fieldOfView, target, t);
         }
 
-        public void Look(Vector2 mouseDelta)
+        /// <param name="degrees">x = yaw right, y = pitch up, in degrees at 1x zoom.</param>
+        public void Look(Vector2 degrees)
         {
             // Scale by zoom so on-screen aim speed feels the same while scoped.
             float scale = sensitivity / Mathf.Max(1f, Zoom);
-            body.Rotate(0f, mouseDelta.x * scale, 0f, Space.Self);
-            _pitch = Mathf.Clamp(_pitch - mouseDelta.y * scale, -89f, 89f);
+            body.Rotate(0f, degrees.x * scale, 0f, Space.Self);
+            _pitch = Mathf.Clamp(_pitch - degrees.y * scale, -89f, 89f);
             pivot.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
         }
 

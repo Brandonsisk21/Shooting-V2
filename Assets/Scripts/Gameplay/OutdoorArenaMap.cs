@@ -23,7 +23,13 @@ namespace ArenaShooter.Gameplay
 
         public static MapInfo Build(Transform root)
         {
-            var map = new MapInfo { Name = DisplayName, Root = root };
+            var map = new MapInfo
+            {
+                Name = DisplayName,
+                Root = root,
+                PlayArea = new Bounds(new Vector3(0f, 5f, 0f), new Vector3(HalfWidth * 2f, 16f, HalfLength * 2f)),
+                HasBots = true,
+            };
             var b = new SymmetricBuilder(root);
 
             BuildGround(root);
@@ -38,10 +44,6 @@ namespace ArenaShooter.Gameplay
             map.Spawns.AddRange(b.Spawn("Spawn_BaseLanding", new Vector3(-11f, 3.5f, 26f)));
             map.Spawns.AddRange(b.Spawn("Spawn_CornerEast", new Vector3(18f, 0f, 26f)));
             map.Spawns.AddRange(b.Spawn("Spawn_CornerWest", new Vector3(-18f, 0f, 20f)));
-
-            // Placeholder targets until bots exist.
-            b.Dummy("Dummy_Ridge", new Vector3(18f, 2f, 4f));
-            b.Dummy("Dummy_Field", new Vector3(8f, 0f, -6f));
 
             return map;
         }

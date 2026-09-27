@@ -1,4 +1,4 @@
-# Arena Shooter — Game Design Document (v0.3 / Phase 1)
+# Arena Shooter — Game Design Document (v0.4 / Phase 1)
 
 > Status: DRAFT. Sections marked **[OPEN QUESTION]** need a decision before implementation begins.
 > This document is meant to be dropped into the project repo (e.g. `/docs/GDD.md`) so Claude Code can reference it across sessions.
@@ -66,6 +66,12 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - Weapons left on the ground (dropped by death or by a swap) despawn after 30s.
 - Note: the center pad keeps its fixed 90s timer, so a dropped Sniper and a fresh pad Sniper can briefly both exist. This follows "regardless of pickup state" in 2.3; flag if it should change.
 
+### 2.3.2 Controls
+- **DECIDED:** Keyboard + mouse **and Xbox controller**, usable interchangeably (on-screen prompts follow the last device used). Built on Unity's Input System package.
+- **Controller (Halo-style):** LS move, RS look, A jump, RT fire, LT or RS-click scope, X reload (**hold X** to pick up a weapon), Y switch weapon, View (hold) scoreboard, Menu help. Rumble on firing and taking damage.
+- Stick look: 15% deadzone, squared response curve, 200°/s yaw and 130°/s pitch at full tilt, with a Halo-style turn boost (up to 1.5x) after holding full sideways. Light **aim assist friction** (look slows to 55% while the crosshair is over an enemy) on controller only.
+- **[OPEN QUESTION]** Should aim assist also include magnetism (pulling the crosshair toward targets), like Halo? Currently friction only.
+
 ### 2.4 Movement
 **DECIDED:** Classic Halo-style — **no sprint**, fixed jump height, single jump, strafing is the main mobility skill, moderate air control.
 
@@ -115,6 +121,17 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 ## 4. Game Modes
 
 - **Phase 1:** Free-for-All (FFA) only — matches the request to start like classic Halo 2 FFA.
+
+### 4.1 FFA rules (Phase 1 placeholders, all tunable on `ArenaBootstrap` / `MatchManager`)
+- +1 per kill, **-1 per suicide** (Halo rule). First to **25** wins; results show for 10s, then a new match starts (scores reset, everyone respawns, sniper pad resets).
+- Respawn 3s after death at the spawn farthest from the nearest living enemy.
+- **[OPEN QUESTION]** Score limit (25 is Halo 2's FFA default), and whether to add a time limit (e.g. 10 minutes).
+
+### 4.2 Bots
+- **DECIDED:** Bots act on their own with **no set paths**. They roam to random reachable spots on a navigation mesh baked from the map at runtime, go for the sniper and dropped weapons, react to enemies they see, hear (gunfire within 35 m) or get shot by, and fight everyone (FFA).
+- They use the **same movement, health and weapons as the player**, and are held to human-like limits: a vision cone (140°, 70 m), reaction delay, capped turn speed, and aim error that shrinks while tracking a target. In fights they strafe, jump occasionally, keep a preferred range per weapon (rifle 8–22 m, sniper 15–50 m) and swap to the sniper at range.
+- Arena match: **5 bots + you = 6 players** (inside the 4–8 target). Difficulty presets Easy / **Normal** (default) / Hard.
+- **[OPEN QUESTION]** Default difficulty and bot count once playtested.
 - **Later phases (not in initial build):** Team Slayer, Capture the Flag, King of the Hill, etc. — worth designing the map with these in mind (symmetry helps enormously here) even though they're out of scope now.
 
 ---
@@ -125,6 +142,7 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 - **Style:** Cartoony / stylized — think bold outlines or flat-shaded low-poly, saturated color palette, exaggerated proportions on characters/weapons rather than photorealism.
 - **Readability first:** even with a cartoony style, enemy silhouettes must read clearly against map backgrounds (a common arena-shooter art trap is a beautiful map that hides enemies).
 - **DECIDED:** No existing art or models. **Phase 1 is gray-box/blockout only** — primitive shapes for the map (cubes, ramps, cylinders), capsule or basic humanoid placeholder for the player character. Final cartoony art pass is a later phase, once movement/combat feel good.
+- **HUD (DECIDED):** health and ammo live together in one panel at the **bottom-left**: weapon name + other slot, big magazine count / reserve, a pip per round, and a 10-segment health bar that shimmers while regenerating. Also: crosshair turns red over enemies, hit markers (white body / yellow head / red kill), damage numbers, red arcs pointing at whoever is shooting you, low-health red vignette, kill feed (top-right), score widget (bottom-right), scoreboard (Tab / View), death card and match results.
 - **[OPEN QUESTION]** Reference games/art for the *eventual* art pass — e.g., closer to *Splatoon*, *Team Fortress 2*, *Fortnite*, or *Overwatch*'s semi-stylized realism? Not urgent since Phase 1 is gray-box, but useful to note now so future asset requests have a target.
 
 ---
@@ -138,13 +156,16 @@ A first-person arena shooter inspired by classic Halo 2 arena maps (e.g. Midship
 
 **DECIDED:** Phase 1 target is a **fully playable bot match on one gray-boxed map** — no networked multiplayer yet. This de-risks the hardest problem (netcode) until movement/combat feel good.
 
-- [ ] Player controller: classic Halo movement (no sprint), jump, FPS camera
-- [ ] Rifle: hitscan fire, 40 headshot / 25 body damage, basic muzzle flash/sound
-- [ ] Sniper: hitscan fire, scope-in, 100 headshot (instant kill) / 50 body damage, pickup/drop logic, 90s fixed respawn timer
-- [ ] Health system: 100 HP, damage application, death, respawn
-- [ ] One gray-boxed symmetrical map (Midship-inspired) sized for 4–8 players, with spawns + center sniper spawn
-- [ ] Bots (simple aim-and-shoot AI) to fill out the 4–8 player FFA match
-- [ ] Basic HUD: health, ammo, crosshair, hit marker
+Status: everything below is implemented; the owner has played the first slices, and the bot/controller/HUD update still needs a playtest.
+
+- [x] Player controller: classic Halo movement (no sprint), jump, FPS camera
+- [x] Rifle: hitscan fire, 40 headshot / 25 body damage, basic muzzle flash/sound
+- [x] Sniper: hitscan fire, scope-in, 100 headshot (instant kill) / 50 body damage, pickup/drop logic, 90s fixed respawn timer
+- [x] Health system: 100 HP, damage application, death, respawn
+- [x] One gray-boxed symmetrical map (Midship-inspired) sized for 4–8 players, with spawns + center sniper spawn
+- [x] Bots to fill out the 4–8 player FFA match (autonomous, see 4.2)
+- [x] HUD: health, ammo, crosshair, hit marker (plus the extras in 5)
+- [x] Xbox controller support (see 2.3.2)
 
 ---
 
@@ -162,6 +183,7 @@ All core Phase 1 decisions are now locked (see summary below). The only thing le
 1. Art reference for the *eventual* art pass (not urgent — Phase 1 is gray-box only, this matters once you get to the real art phase).
 2. Sniper "power weapon incoming" callout (optional polish, not required for Phase 1).
 3. Final name for the first map (working title "Overlook").
+4. FFA score limit / time limit (4.1), bot difficulty and count (4.2), aim assist magnetism (2.3.2).
 
 ### All decisions locked in for Phase 1:
 - **Engine:** Unity (C#)

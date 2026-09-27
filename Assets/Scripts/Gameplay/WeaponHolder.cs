@@ -5,12 +5,17 @@ using UnityEngine;
 namespace ArenaShooter.Gameplay
 {
     /// <summary>
-    /// Carries a <see cref="Loadout"/>, fires hitscan shots from the aim camera, handles the sniper
-    /// scope and weapon pickups. Driven by <see cref="PlayerController"/> (and later by bots).
+    /// Carries a <see cref="Loadout"/>, fires hitscan shots along the aim transform, handles the
+    /// sniper scope and weapon pickups. Driven by <see cref="PlayerController"/> or <see cref="BotController"/>.
     /// </summary>
     public class WeaponHolder : MonoBehaviour
     {
-        public Camera aimCamera;
+        [Tooltip("Shots travel along this transform's forward (camera for the player, head pivot for bots).")]
+        public Transform aim;
+        [Tooltip("Player only: the camera the first-person view model hangs from.")]
+        public Camera viewModelCamera;
+        [Tooltip("Where tracers start when there's no view model (bots' gun muzzle).")]
+        public Transform worldMuzzle;
         public AudioSource audioSource;
         public WeaponStats spawnWeapon = WeaponStats.Rifle();
         public float switchTime = 0.4f;
@@ -19,22 +24,34 @@ namespace ArenaShooter.Gameplay
         public float pickupRadius = 1.6f;
         [Tooltip("Seconds before a weapon dropped by a swap or death disappears.")]
         public float droppedWeaponLifetime = 30f;
+        [Tooltip("Track which combatant is under the crosshair (red reticle, aim assist). Player only.")]
+        public bool trackAimTarget;
 
         public Loadout Loadout { get; private set; }
+        public Combatant Owner => _ownerCombatant != null ? _ownerCombatant : _ownerCombatant = GetComponent<Combatant>();
         public bool IsZoomed { get; private set; }
         public float CurrentZoom => IsZoomed && Loadout.Active != null ? Loadout.Active.Stats.zoom : 1f;
         public WeaponPickup NearbyPickup { get; private set; }
         public PickupOutcome NearbyPickupOutcome { get; private set; }
+        /// <summary>Living enemy under the crosshair within weapon range, if <see cref="trackAimTarget"/>.</summary>
+        public Combatant AimTarget { get; private set; }
 
+        /// <summary>This holder confirmed a hit on something with health.</summary>
         public event Action<HitInfo> HitConfirmed;
+        /// <summary>This holder fired a shot.</summary>
+        public event Action<WeaponStats> Fired;
+        /// <summary>Any holder fired (bots use this to hear gunfire).</summary>
+        public static event Action<Combatant, Vector3> AnyShotFired;
 
         private Transform _owner;
+        private Combatant _ownerCombatant;
         private Transform _viewModel;
         private Transform _muzzle;
         private float _fireQueuedUntil = float.NegativeInfinity;
         private float _muzzleFlashUntil;
         private GameObject _muzzleFlash;
         private readonly Collider[] _overlap = new Collider[16];
+        private RaycastHit[] _hits = new RaycastHit[32];
 
         private void Awake()
         {
@@ -46,11 +63,11 @@ namespace ArenaShooter.Gameplay
 
         private void Start()
         {
-            // aimCamera is usually assigned after Awake, so build the first view model here.
+            // Cameras/aim are usually assigned after Awake, so build the first view model here.
             if (_viewModel == null) BuildViewModel(Loadout.Active);
         }
 
-        /// <summary>Back to the spawn loadout: just the rifle (GDD 2.2). A carried sniper is lost.</summary>
+        /// <summary>Back to the spawn loadout: just the rifle (GDD 2.2).</summary>
         public void ResetLoadout()
         {
             Loadout.Clear();
@@ -120,6 +137,13 @@ namespace ArenaShooter.Gameplay
 
         private void Update()
         {
+            if (Owner != null && !Owner.IsAlive)
+            {
+                NearbyPickup = null;
+                AimTarget = null;
+                return;
+            }
+
             bool wasReloading = Loadout.Active != null && Loadout.Active.IsReloading;
             Loadout.Tick(Time.deltaTime);
 
@@ -138,42 +162,83 @@ namespace ArenaShooter.Gameplay
             if (_viewModel != null) _viewModel.gameObject.SetActive(!IsZoomed);
 
             ScanForPickups();
+            if (trackAimTarget) UpdateAimTarget();
+        }
+
+        /// <summary>First thing a shot along <paramref name="ray"/> would hit, skipping the shooter, pickups and body blockers.</summary>
+        public bool TraceShot(Ray ray, float range, out RaycastHit hit)
+        {
+            int count = Physics.RaycastNonAlloc(ray, _hits, range, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
+            if (count == _hits.Length) _hits = new RaycastHit[_hits.Length * 2];
+            hit = default;
+            float best = float.MaxValue;
+            for (int i = 0; i < count; i++)
+            {
+                var h = _hits[i];
+                if (h.distance >= best || !IsShotBlocker(h.collider, _owner)) continue;
+                best = h.distance;
+                hit = h;
+            }
+            return best < float.MaxValue;
+        }
+
+        /// <summary>
+        /// Whether a collider stops bullets: world geometry and hitboxes do; the shooter, pickup
+        /// triggers and CharacterController capsules (hitboxes sit inside them) don't.
+        /// </summary>
+        public static bool IsShotBlocker(Collider collider, Transform shooter)
+        {
+            if (shooter != null && collider.transform.IsChildOf(shooter)) return false;
+            if (collider is CharacterController) return false;
+            if (collider.isTrigger) return collider.GetComponent<Hitbox>() != null;
+            return true;
         }
 
         private void FireHitscan(WeaponState weapon)
         {
             WeaponStats stats = weapon.Stats;
-            Ray ray = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-            RaycastHit[] hits = Physics.RaycastAll(ray, stats.range, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-            Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
+            var ray = new Ray(aim.position, aim.forward);
             Vector3 end = ray.origin + ray.direction * stats.range;
-            foreach (var hit in hits)
-            {
-                if (hit.collider.transform.IsChildOf(_owner)) continue;
 
+            if (TraceShot(ray, stats.range, out RaycastHit hit))
+            {
                 end = hit.point;
                 var hitbox = hit.collider.GetComponent<Hitbox>();
                 Health target = hitbox != null ? hitbox.Owner : null;
                 if (target != null && !target.IsDead)
                 {
-                    DamageResult damage = target.TakeDamage(stats.DamageFor(hitbox.zone));
-                    var info = new HitInfo(target, hitbox.zone, damage, hit.point);
+                    var source = new DamageSource(Owner, stats.id, hitbox.zone);
+                    DamageResult damage = target.TakeDamage(stats.DamageFor(hitbox.zone), source);
                     PlayOneShot(damage.Killed ? ProceduralAudio.Kill : hitbox.zone == HitZone.Head ? ProceduralAudio.HitHead : ProceduralAudio.HitBody);
-                    HitConfirmed?.Invoke(info);
+                    HitConfirmed?.Invoke(new HitInfo(target, hitbox.zone, damage, hit.point));
                 }
-                else
+                else if (target == null)
                 {
                     ShotEffects.Impact(hit.point, hit.normal);
                 }
-                break;
             }
 
-            Vector3 from = _muzzle != null && !IsZoomed ? _muzzle.position : ray.origin + ray.direction * 0.3f + Vector3.down * 0.1f;
+            Vector3 from = _muzzle != null && !IsZoomed ? _muzzle.position
+                : worldMuzzle != null ? worldMuzzle.position
+                : ray.origin + ray.direction * 0.3f + Vector3.down * 0.1f;
             bool sniper = stats.id == "sniper";
             ShotEffects.Tracer(from, end, sniper ? new Color(0.6f, 0.9f, 1f, 0.9f) : new Color(1f, 0.85f, 0.4f, 0.8f), sniper ? 0.05f : 0.02f, sniper ? 0.25f : 0.06f);
             PlayOneShot(ProceduralAudio.Gunshot(stats.id));
             _muzzleFlashUntil = Time.time + 0.05f;
+            Fired?.Invoke(stats);
+            AnyShotFired?.Invoke(Owner, ray.origin);
+        }
+
+        private void UpdateAimTarget()
+        {
+            AimTarget = null;
+            var active = Loadout.Active;
+            if (active == null || aim == null) return;
+            if (!TraceShot(new Ray(aim.position, aim.forward), active.Stats.range, out RaycastHit hit)) return;
+            var hitbox = hit.collider.GetComponent<Hitbox>();
+            if (hitbox == null) return;
+            var target = hitbox.GetComponentInParent<Combatant>();
+            if (target != null && target != Owner && target.IsAlive) AimTarget = target;
         }
 
         private void ScanForPickups()
@@ -204,7 +269,7 @@ namespace ArenaShooter.Gameplay
             Vector3 ground = position;
             foreach (var hit in hits)
             {
-                if (hit.collider.transform.IsChildOf(_owner) || hit.collider.GetComponent<Hitbox>() != null) continue;
+                if (hit.collider.transform.IsChildOf(_owner) || hit.collider is CharacterController) continue;
                 if (hit.distance >= best) continue;
                 best = hit.distance;
                 ground = hit.point;
@@ -224,12 +289,12 @@ namespace ArenaShooter.Gameplay
             _viewModel = null;
             _muzzle = null;
             _muzzleFlash = null;
-            if (weapon == null || aimCamera == null) return;
+            if (weapon == null || viewModelCamera == null) return;
 
             bool sniper = weapon.Stats.id == "sniper";
             float length = sniper ? 0.9f : 0.6f;
             var root = new GameObject("ViewModel_" + weapon.Stats.id).transform;
-            root.SetParent(aimCamera.transform, false);
+            root.SetParent(viewModelCamera.transform, false);
             root.localPosition = new Vector3(0.22f, -0.2f, 0.35f);
 
             Color bodyColor = sniper ? new Color(0.2f, 0.3f, 0.25f) : new Color(0.25f, 0.3f, 0.4f);

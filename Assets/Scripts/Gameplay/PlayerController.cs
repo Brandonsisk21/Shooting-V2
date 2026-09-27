@@ -1,12 +1,11 @@
-using System.Collections.Generic;
-using ArenaShooter.Core;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace ArenaShooter.Gameplay
 {
     /// <summary>
-    /// Reads keyboard/mouse input (legacy Input Manager) and drives the motor, look and weapons.
-    /// Also handles the local player's death and respawn.
+    /// Turns <see cref="PlayerCommands"/> (keyboard/mouse or gamepad) into movement, look and
+    /// weapon actions. Death and respawn are handled by <see cref="MatchManager"/>.
     /// </summary>
     public class PlayerController : MonoBehaviour
     {
@@ -14,105 +13,55 @@ namespace ArenaShooter.Gameplay
         public PlayerLook look;
         public WeaponHolder weapons;
         public Health health;
-        public float respawnDelay = 3f;
+        public PlayerInputReader input;
         [Tooltip("Debug: press K to hurt yourself for this much, to test regen.")]
         public float debugSelfDamage = 25f;
 
-        [Tooltip("Where the player can (re)spawn. If empty, respawns where the player started.")]
-        public List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
-
         public bool IsDead => health != null && health.IsDead;
-        public float RespawnCountdown => IsDead ? Mathf.Max(0f, _respawnAt - Time.time) : 0f;
-
-        private static readonly System.Random SpawnRandom = new System.Random();
-
-        private Vector3 _fallbackPosition;
-        private Quaternion _fallbackRotation;
-        private float _respawnAt;
+        public PlayerCommands LastCommands { get; private set; }
 
         private void Start()
         {
-            _fallbackPosition = transform.position;
-            _fallbackRotation = transform.rotation;
-            health.Died += _ => OnDied();
-            MoveToSpawn();
-        }
-
-        private void OnDied()
-        {
-            weapons.DropOnDeath();
-            _respawnAt = Time.time + respawnDelay;
+            weapons.Fired += stats =>
+            {
+                if (stats.id == "sniper") input.Rumble(0.45f, 0.7f, 0.14f);
+                else input.Rumble(0.05f, 0.25f, 0.05f);
+            };
+            health.Damaged += (_, result, __) => input.Rumble(0.5f, 0.3f, result.Killed ? 0.35f : 0.18f);
+            GetComponent<Combatant>().Respawned += _ => look.ResetPitch();
         }
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Escape)) SetCursorLocked(false);
-            else if (!CursorLocked && Input.GetMouseButtonDown(0))
+            var keyboard = Keyboard.current;
+            var mouse = Mouse.current;
+            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetCursorLocked(false);
+            else if (!CursorLocked && mouse != null && mouse.leftButton.wasPressedThisFrame)
             {
                 SetCursorLocked(true);
                 return; // the click that captures the mouse shouldn't also fire
             }
 
+            var cmd = input.Read(Time.deltaTime, weapons.NearbyPickup != null, weapons.AimTarget != null, CursorLocked);
+            LastCommands = cmd;
+
             if (IsDead)
             {
                 motor.Move(Vector2.zero, false, Time.deltaTime);
-                if (Time.time >= _respawnAt) Respawn();
                 return;
             }
 
-            bool active = CursorLocked;
-            Vector2 move = active ? ReadMove() : Vector2.zero;
-            motor.Move(move, active && Input.GetKeyDown(KeyCode.Space), Time.deltaTime);
-
+            motor.Move(cmd.Move, cmd.Jump, Time.deltaTime);
             look.Zoom = weapons.CurrentZoom;
-            if (!active) return;
+            look.Look(cmd.LookDegrees);
 
-            look.Look(new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y")));
-
-            if (Input.GetMouseButtonDown(0)) weapons.QueueFire();
-            if (Input.GetMouseButtonDown(1)) weapons.ToggleZoom();
-            if (Input.GetKeyDown(KeyCode.R)) weapons.Reload();
-            if (Input.GetKeyDown(KeyCode.E)) weapons.TryPickup();
-            if (Input.GetKeyDown(KeyCode.Q) || Mathf.Abs(Input.mouseScrollDelta.y) > 0.01f) weapons.SwitchNext();
-            if (Input.GetKeyDown(KeyCode.Alpha1)) weapons.SwitchTo(0);
-            if (Input.GetKeyDown(KeyCode.Alpha2)) weapons.SwitchTo(1);
-            if (Input.GetKeyDown(KeyCode.K)) health.TakeDamage(debugSelfDamage);
-        }
-
-        private void Respawn()
-        {
-            health.ResetHealth();
-            weapons.ResetLoadout();
-            MoveToSpawn();
-        }
-
-        private void MoveToSpawn()
-        {
-            Vector3 position = _fallbackPosition;
-            Quaternion rotation = _fallbackRotation;
-
-            var candidates = new List<GroundPoint>(spawnPoints.Count);
-            foreach (var spawn in spawnPoints)
-                candidates.Add(new GroundPoint(spawn.transform.position.x, spawn.transform.position.z));
-            // Enemy positions come in with bots; until then every spawn is equally safe.
-            int index = SpawnSelector.Pick(candidates, null, SpawnRandom);
-            if (index >= 0)
-            {
-                position = spawnPoints[index].transform.position;
-                rotation = spawnPoints[index].transform.rotation;
-            }
-
-            motor.Teleport(position, rotation);
-            look.ResetPitch();
-        }
-
-        private static Vector2 ReadMove()
-        {
-            float x = (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ? 1f : 0f)
-                    - (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ? 1f : 0f);
-            float y = (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow) ? 1f : 0f)
-                    - (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) ? 1f : 0f);
-            return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
+            if (cmd.Fire) weapons.QueueFire();
+            if (cmd.ToggleZoom) weapons.ToggleZoom();
+            if (cmd.Reload) weapons.Reload();
+            if (cmd.Pickup) weapons.TryPickup();
+            if (cmd.SwitchWeapon) weapons.SwitchNext();
+            if (cmd.SwitchToSlot >= 0) weapons.SwitchTo(cmd.SwitchToSlot);
+            if (cmd.DebugSelfDamage) health.TakeDamage(debugSelfDamage);
         }
 
         private static bool CursorLocked => Cursor.lockState == CursorLockMode.Locked;

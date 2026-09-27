@@ -26,7 +26,7 @@ namespace ArenaShooter.Gameplay
         /// <param name="moveInput">x = strafe, y = forward, each in [-1, 1].</param>
         public void Move(Vector2 moveInput, bool jumpPressed, float deltaTime)
         {
-            if (deltaTime <= 0f) return;
+            if (deltaTime <= 0f || !_controller.enabled) return;
             if (jumpPressed) _jumpBufferedUntil = Time.time + settings.jumpBufferTime;
 
             bool grounded = _controller.isGrounded;
@@ -70,6 +70,13 @@ namespace ArenaShooter.Gameplay
                 _velocity.x = actual.x;
                 _velocity.z = actual.z;
             }
+        }
+
+        /// <summary>Turns the body's collision on/off (off while dead so corpses don't block anyone).</summary>
+        public void SetCollision(bool enabled)
+        {
+            _controller.enabled = enabled;
+            if (!enabled) _velocity = Vector3.zero;
         }
 
         public void Teleport(Vector3 position, Quaternion rotation)

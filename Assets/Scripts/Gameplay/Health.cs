@@ -17,8 +17,8 @@ namespace ArenaShooter.Gameplay
         public float Current => Model.Current;
         public bool IsDead => Model.IsDead;
 
-        public event Action<Health, DamageResult> Damaged;
-        public event Action<Health> Died;
+        public event Action<Health, DamageResult, DamageSource> Damaged;
+        public event Action<Health, DamageSource> Died;
 
         private void Awake()
         {
@@ -33,11 +33,11 @@ namespace ArenaShooter.Gameplay
             Model.Tick(Time.deltaTime);
         }
 
-        public DamageResult TakeDamage(float amount)
+        public DamageResult TakeDamage(float amount, DamageSource source = default)
         {
             DamageResult result = Model.ApplyDamage(amount);
-            if (result.Applied > 0f) Damaged?.Invoke(this, result);
-            if (result.Killed) Died?.Invoke(this);
+            if (result.Applied > 0f) Damaged?.Invoke(this, result, source);
+            if (result.Killed) Died?.Invoke(this, source);
             return result;
         }
 

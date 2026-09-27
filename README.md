@@ -3,60 +3,61 @@
 A Halo 2–style first-person arena shooter in Unity (C#), PC only. The design lives in
 [`docs/GDD.md`](docs/GDD.md).
 
-## Current state: Phase 1, slices 1–2 (gray-box)
+## Current state: Phase 1 complete (gray-box), needs playtesting
 
-Press Play and you spawn into **Overlook** (working title), the first map: an outdoor,
-Midship-style arena with 180° symmetry ([layout sketch](docs/maps/overlook-layout.svg)), a center sniper platform, Red (north) and Blue (south)
-bases with tunnels and overlooks, side ridges, 8 spawns, and a few placeholder dummies. See GDD 3.1.
-Press **F10** to swap to the **test range**, a flat lane for checking numbers:
+Press Play and you drop into a **Free-for-All match against 5 bots** on **Overlook** (working
+title): an outdoor, Midship-style arena with 180° symmetry ([layout sketch](docs/maps/overlook-layout.svg)),
+a center sniper platform, Red (north) and Blue (south) bases with tunnels and overlooks, and side ridges.
 
-- **Player:** classic Halo movement (no sprint, 6 m/s, 1.3 m jump, moderate air control), FPS camera.
-- **Rifle** (spawn weapon): hitscan, 40 head / 25 body, 5 shots/s, 30-round magazine, auto-reload.
-- **Sniper** on a raised center pad: hitscan, 100 head / 50 body, 2x scope (no sway), 4 + 8 rounds,
-  spawns at start and every 90 s. Pick up with **E**; two weapon slots; no manual drop.
-  Dropped where you die, with its remaining ammo.
-- **Health:** 100 HP, regenerates 25 HP/s after 5 s without damage. Death → respawn with rifle only
-  at a random map spawn.
-- **Target dummies** at 10 / 25 / 50 / 80 / 105 m, two strafing dummies and one on the platform.
-  They respawn 3 s after dying.
-- **HUD:** health bar, ammo, crosshair, hit marker (white body / yellow head / red kill), damage
-  numbers, scope overlay, pickup prompt, sniper spawn timer.
-- Jump-test blocks (0.5 / 1.0 / 1.25 / 1.6 m) near spawn. Only the 1.6 m one is too tall.
-
-Not in yet: bots, player hitboxes (needed once bots shoot back).
+- **Bots** play on their own (no set paths): they roam, grab the sniper, hear gunfire, strafe,
+  and fight you and each other, with human-like reaction time and aim. First to 25 kills wins.
+- **Weapons:** Rifle (spawn weapon, 40 head / 25 body, 5 shots/s, 30 rounds) and Sniper
+  (center pad every 90 s, 100 head / 50 body, 2x scope, dropped on death).
+- **Health:** 100 HP, regenerates after 5 s without damage.
+- **HUD:** health + ammo panel bottom-left, kill feed, score, scoreboard, damage-direction arcs,
+  red crosshair over enemies.
+- **Controls:** keyboard + mouse or an **Xbox controller**, switchable at any time.
+- **F10** swaps to the **test range** (dummies at known distances, jump-test blocks, no bots).
 
 ## Opening the project
 
 1. Install **Unity 6** (any 6000.x LTS) with Unity Hub.
 2. Hub → **Add → Add project from disk** → pick this folder. If Hub asks about the editor
    version, choose the Unity 6 version you have installed.
-3. Open any scene (the default empty one is fine) and press **Play**. The test range builds itself.
-   Click in the Game view to capture the mouse.
+3. Unity installs the **Input System** package on first open. If it asks to enable the new input
+   backends and restart, click **Yes**.
+4. Press **Play**. The map, bots and match build themselves. Click the Game view to capture the mouse,
+   or just pick up a controller.
 
-If Play throws `InvalidOperationException` about the Input class, set
-**Edit → Project Settings → Player → Active Input Handling** to **Input Manager (Old)** or **Both**.
+**No input at all?** Edit → Project Settings → Player → Other Settings → **Active Input Handling**
+must be **Input System Package (New)** or **Both** (not "Input Manager (Old)").
 
 ### Controls
 
-| Key | Action |
-|---|---|
-| WASD / arrows | Move |
-| Space | Jump |
-| Mouse | Aim |
-| Left mouse | Fire |
-| Right mouse | Toggle sniper scope |
-| R | Reload |
-| E | Pick up weapon / ammo |
-| Q, mouse wheel, 1, 2 | Switch weapon |
-| K | Hurt yourself 25 HP (debug: test regen) |
-| F1 | Toggle help |
-| F10 | Switch between the arena and the test range |
-| Esc | Release mouse |
+| Action | Keyboard + mouse | Xbox controller |
+|---|---|---|
+| Move / look | WASD / mouse | Left stick / right stick |
+| Jump | Space | A |
+| Fire | Left mouse | RT |
+| Sniper scope | Right mouse | LT or click right stick |
+| Reload | R | X |
+| Pick up weapon | E | Hold X |
+| Switch weapon | Q, mouse wheel, 1, 2 | Y |
+| Scoreboard | Tab (hold) | View (hold) |
+| Help | F1 | Menu |
+| Switch map | F10 | — |
+| Hurt yourself (debug) | K | — |
+| Release mouse | Esc | — |
+
+Controller extras: rumble, a turn boost when holding the stick fully sideways, and light aim
+assist (look slows while the crosshair is on an enemy). Tune them on `Player → PlayerInputReader`.
 
 ### Tuning
 
 Numbers are serialized fields, so you can tweak them live in the Inspector during Play:
-`Player → PlayerMotor → Settings` (movement), `Player → Health` (regen),
+`ArenaBootstrap` (bot count, difficulty, score limit — set before pressing Play),
+`Bot_* → BotController → Skill` (reaction, aim, vision), `Player → PlayerInputReader` (sensitivity,
+deadzones, aim assist, rumble), `Player → PlayerMotor → Settings` (movement), `Player → Health` (regen),
 `Player → WeaponHolder → Spawn Weapon` (rifle), `SniperPad → SniperSpawnPad` (sniper + timer).
 Defaults are in `MovementSettings.cs` and `WeaponStats.cs`; update the GDD if you change them for good.
 
@@ -64,8 +65,10 @@ Defaults are in `MovementSettings.cs` and `WeaponStats.cs`; update the GDD if yo
 
 ```
 Assets/Scripts/Core/       Pure C# game rules (no UnityEngine): health/regen, weapon ammo/fire/reload,
-                           2-slot loadout + pickup rules, fixed-interval spawner. Shared by player and bots.
-Assets/Scripts/Gameplay/   Unity components: motor, look, weapons/hitscan, pickups, dummies, HUD, bootstrap,
+                           2-slot loadout + pickup rules, spawn timer + spawn choice, FFA scoring,
+                           bot skill/aim, stick response. Shared by player and bots.
+Assets/Scripts/Gameplay/   Unity components: motor, look, input (keyboard/mouse + gamepad), weapons/hitscan,
+                           combatants, bots (BotController), match (MatchManager), HUD, bootstrap,
                            map builders (OutdoorArenaMap, TestRangeMap) and the outdoor look.
 Assets/Tests/EditMode/     NUnit tests for Core (run in Unity's Test Runner or with dotnet, below).
 Tools/                     .NET projects for checking code without the Unity editor.
@@ -76,4 +79,5 @@ Tools/                     .NET projects for checking code without the Unity edi
 ```sh
 dotnet test  Tools/CoreTests           # game-rule unit tests
 dotnet build Tools/UnityCompileCheck   # compiles all scripts against Unity reference assemblies
+                                       # (+ Input System stubs mirroring the real package API)
 ```

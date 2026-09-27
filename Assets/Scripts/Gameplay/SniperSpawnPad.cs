@@ -25,6 +25,14 @@ namespace ArenaShooter.Gameplay
             _spawner = new FixedIntervalSpawner(interval);
         }
 
+        /// <summary>Match restart: clear the pad and spawn a fresh sniper on the next frame.</summary>
+        public void ResetTimer()
+        {
+            if (_current != null) _current.Consume();
+            _current = null;
+            _spawner = new FixedIntervalSpawner(interval);
+        }
+
         private void Update()
         {
             if (_spawner.Tick(Time.deltaTime)) Spawn();

@@ -1,4 +1,6 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace ArenaShooter.Gameplay
 {
@@ -9,7 +11,8 @@ namespace ArenaShooter.Gameplay
     }
 
     /// <summary>
-    /// Builds the chosen gray-box map, the outdoor lighting and the player at runtime.
+    /// Builds the chosen gray-box map, bakes bot navigation, spawns the player and bots, and starts
+    /// a Free-for-All match.
     ///
     /// Runs automatically when you press Play in any scene that doesn't already contain one, so the
     /// project is playable without hand-authored scene files. F10 swaps between the arena and the
@@ -18,10 +21,16 @@ namespace ArenaShooter.Gameplay
     public class ArenaBootstrap : MonoBehaviour
     {
         public MapLayout layout = MapLayout.OutdoorArena;
+        [Tooltip("Bots in the arena (GDD 3.2: 4–8 players total, including you).")]
+        [Range(0, 7)] public int botCount = 5;
+        public BotDifficulty botDifficulty = BotDifficulty.Normal;
+        [Tooltip("Kills to win a Free-for-All match.")]
+        public int scoreLimit = 25;
 
         public MapInfo CurrentMap { get; private set; }
 
         private GameObject _player;
+        private bool _rebuilding;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoStart()
@@ -40,25 +49,48 @@ namespace ArenaShooter.Gameplay
 
         private void Update()
         {
-            if (!Input.GetKeyDown(KeyCode.F10)) return;
+            var keyboard = Keyboard.current;
+            if (_rebuilding || keyboard == null || !keyboard[Key.F10].wasPressedThisFrame) return;
             layout = layout == MapLayout.OutdoorArena ? MapLayout.TestRange : MapLayout.OutdoorArena;
-            Rebuild();
+            StartCoroutine(Rebuild());
         }
 
         private void Build()
         {
             var root = new GameObject("Map_" + layout).transform;
             CurrentMap = layout == MapLayout.TestRange ? TestRangeMap.Build(root) : OutdoorArenaMap.Build(root);
+
+            // Bake before any characters exist so only level geometry becomes walkable.
+            Physics.SyncTransforms();
+            var bakeArea = CurrentMap.PlayArea;
+            bakeArea.Expand(4f);
+            NavMeshBaker.Bake(bakeArea);
+
+            var match = root.gameObject.AddComponent<MatchManager>();
+            match.Initialize(scoreLimit);
+            match.SetSpawns(CurrentMap.Spawns);
+            match.SniperPad = CurrentMap.SniperPad;
+
             _player = BuildPlayer(CurrentMap);
+            match.AddCombatant(_player.GetComponent<Combatant>());
+
+            if (CurrentMap.HasBots)
+                for (int i = 0; i < botCount; i++)
+                    match.AddCombatant(BotFactory.Create(i, botDifficulty, CurrentMap.PlayArea, root));
+
+            match.BeginMatch();
         }
 
-        private void Rebuild()
+        private IEnumerator Rebuild()
         {
+            _rebuilding = true;
             if (CurrentMap?.Root != null) Destroy(CurrentMap.Root.gameObject);
             if (_player != null) Destroy(_player);
             foreach (var pickup in FindObjectsByType<WeaponPickup>(FindObjectsSortMode.None))
                 Destroy(pickup.gameObject);
+            yield return null; // let Destroy finish so the old map isn't baked into the new nav mesh
             Build();
+            _rebuilding = false;
         }
 
         private static GameObject BuildPlayer(MapInfo map)
@@ -91,26 +123,39 @@ namespace ArenaShooter.Gameplay
             var motor = root.AddComponent<PlayerMotor>();
             var health = root.AddComponent<Health>();
 
+            var combatant = root.AddComponent<Combatant>();
+            combatant.displayName = "You";
+            combatant.color = new Color(0.3f, 0.9f, 0.45f);
+            combatant.isPlayer = true;
+            combatant.Eyes = pivot;
+            CombatantBody.Build(combatant, pivot, combatant.color, visible: false);
+
             var look = root.AddComponent<PlayerLook>();
             look.body = root.transform;
             look.pivot = pivot;
             look.view = cam;
 
             var weapons = root.AddComponent<WeaponHolder>();
-            weapons.aimCamera = cam;
+            weapons.aim = pivot;
+            weapons.viewModelCamera = cam;
             weapons.audioSource = audio;
+            weapons.trackAimTarget = true;
+
+            var input = root.AddComponent<PlayerInputReader>();
 
             var player = root.AddComponent<PlayerController>();
             player.motor = motor;
             player.look = look;
             player.weapons = weapons;
             player.health = health;
-            player.spawnPoints.AddRange(map.Spawns);
+            player.input = input;
 
             var hud = root.AddComponent<PlayerHud>();
             hud.player = player;
+            hud.combatant = combatant;
             hud.weapons = weapons;
             hud.health = health;
+            hud.input = input;
             hud.view = cam;
             hud.sniperPad = map.SniperPad;
             hud.mapName = map.Name;

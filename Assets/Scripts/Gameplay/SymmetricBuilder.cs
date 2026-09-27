@@ -56,15 +56,6 @@ namespace ArenaShooter.Gameplay
             };
         }
 
-        public TargetDummy[] Dummy(string name, Vector3 feetPosition)
-        {
-            return new[]
-            {
-                TargetDummy.Create(name + "_A", feetPosition, Root),
-                TargetDummy.Create(name + "_B", Twin(feetPosition), Root),
-            };
-        }
-
         private void BuildTree(string name, Vector3 basePosition, float height, float canopyRadius)
         {
             var tree = new GameObject(name).transform;

@@ -57,8 +57,8 @@ namespace ArenaShooter.Gameplay
         private void Awake()
         {
             _health = GetComponent<Health>();
-            _health.Damaged += (_, __) => _flashUntil = Time.time + 0.08f;
-            _health.Died += _ => OnDied();
+            _health.Damaged += (_, __, ___) => _flashUntil = Time.time + 0.08f;
+            _health.Died += (_, __) => OnDied();
         }
 
         private void Start()

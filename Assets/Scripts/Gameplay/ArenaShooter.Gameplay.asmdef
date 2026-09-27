@@ -2,7 +2,8 @@
     "name": "ArenaShooter.Gameplay",
     "rootNamespace": "ArenaShooter.Gameplay",
     "references": [
-        "ArenaShooter.Core"
+        "ArenaShooter.Core",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
